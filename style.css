@@ -81,3 +81,11 @@ img.pawn.ai{border-color:#ff9d7b}
   body.ingame .go{margin:0 0 6px}
   body.ingame .battle-log{display:none}
 }
+.die{position:absolute;left:50%;top:46%;z-index:6;width:84px;height:84px;margin:0;transform:translate(-50%,-50%);border-radius:16px;background:linear-gradient(160deg,#fffaf0,#e7d3a4);color:#24180c;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 12px 28px #000c,inset 0 0 0 3px #c4a46a;pointer-events:none}
+.die.rolling{animation:dieShake .42s linear infinite}
+.die.landed{animation:diePop .28s ease}
+.die-face{line-height:1}
+.pawn.hop{width:26px;height:26px;z-index:4;box-shadow:0 0 0 2px #f8d78d;animation:pawnHop .32s ease}
+@keyframes dieShake{0%{transform:translate(-50%,-50%) rotate(-18deg) scale(.86)}50%{transform:translate(-42%,-62%) rotate(22deg) scale(1.08)}100%{transform:translate(-50%,-50%) rotate(-10deg) scale(.94)}}
+@keyframes diePop{0%{transform:translate(-50%,-50%) scale(.6)}70%{transform:translate(-50%,-50%) scale(1.16)}100%{transform:translate(-50%,-50%) scale(1)}}
+@keyframes pawnHop{0%{transform:translateY(0) scale(1)}40%{transform:translateY(-16px) scale(1.45)}100%{transform:translateY(0) scale(1.05)}}

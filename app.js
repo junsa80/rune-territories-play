@@ -42,12 +42,16 @@ function rewardHTML(){const r=save.lastReward;if(!r)return '';if(r.loss)return `
  const counters={};for(const v of r.pulled||[]){const c=CARDS[v.id];const k=`${c.rarity}:${v.id}:${v.converted?'dust':'card'}`;counters[k]=(counters[k]||0)+1;}
  return `<section class="section rewards"><h2>최근 획득 보상</h2><p>스테이지 ${r.stageId} 카드팩 ${r.packs}개${r.daily?' · 오늘 첫 승리 ×2':''}${r.first?' · 최초 클리어':''}${r.ticket?' · 선택권 +1':''}</p><p class="small">이 팩은 방금 이긴 스테이지 카드만 나옵니다. 선택권과 제작은 이미 클리어한 스테이지 전체입니다.</p>${r.key?`<p class="key-reward">확정 공략 카드: <b>${esc(CARDS[r.key.id].name)}</b>${r.key.converted?' (보유 상한 → 재료)':''}</p>`:''}<div class="reward-grid">${Object.entries(counters).map(([k,v])=>{const [rarity,id,type]=k.split(':');return `<div class="reward-row">${badge(rarity)} ${esc(CARDS[id].name)} ×${v} ${type==='dust'?'↪ 재료':''}</div>`;}).join('')}</div></section>`;
 }
-function board(m){let cells=[];const actor=m.players[m.current];for(let i=0;i<16;i++){const [r,c]=RING[i],t=m.tiles[i],occupier=t.owner===null?'빈 영토':CARDS[t.cardId].name;
-  const here=m.phase==='land'&&actor.pos===i?' here':'';
-  const markers=(m.players[0].pos===i?artTag(faceSrc('player'),'나','pawn me'):'')+(m.players[1].pos===i?artTag(faceSrc(STAGE_FACE[m.stageId]||'leo'),'AI','pawn ai'):'');
+function shownPos(m,who){if(fx&&fx.who===who) return (fx.from+fx.tick)%RING.length; return m.players[who].pos;}
+function dieHTML(){if(!fx) return ''; return `<div class="die ${fx.rolling?'rolling':'landed'}" data-face="${fx.face}" aria-hidden="true"><b class="die-face">${fx.face}</b></div>`;}
+function board(m){let cells=[];const focus=fx?(fx.from+fx.tick)%RING.length:(m.phase==='land'?m.players[m.current].pos:-1);for(let i=0;i<16;i++){const [r,c]=RING[i],t=m.tiles[i],occupier=t.owner===null?'빈 영토':CARDS[t.cardId].name;
+  const here=focus===i?' here':'';
+  const hop0=fx&&fx.who===0&&!fx.rolling&&shownPos(m,0)===i?' hop':'';
+  const hop1=fx&&fx.who===1&&!fx.rolling&&shownPos(m,1)===i?' hop':'';
+  const markers=(shownPos(m,0)===i?artTag(faceSrc('player'),'나','pawn me'+hop0):'')+(shownPos(m,1)===i?artTag(faceSrc(STAGE_FACE[m.stageId]||'leo'),'AI','pawn ai'+hop1):'');
   const summon=t.cardId?artTag(cardSrc(t.cardId),CARDS[t.cardId].name,'summon'):'';
   cells.push(`<div class="tile el-${t.element} owner-${t.owner===null?'none':t.owner}${here}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(occupier)}"><div class="tile-top"><span>${ELEMENTS[t.element]}</span><b>${t.level?'★'.repeat(t.level):''}</b></div><div class="tile-art">${summon}</div><div class="tile-unit">${t.owner===null?(i===0||i===8?'거점':'빈 땅'):esc(CARDS[t.cardId].name)}</div><div class="tile-pawns">${markers}</div></div>`);}
- return `<div class="board" role="img" aria-label="16칸 순환형 영토 보드">${cells.join('')}<div class="board-center">${artTag(faceSrc(m.current?STAGE_FACE[m.stageId]||'leo':'player'), m.current?'상대':'나','center-face')}<div>라운드 <b>${m.round}/${STAGES[m.stageId-1].maxRounds}</b></div><div class="score-me">나 ${goldScore(m,0)}점</div><div class="score-ai">AI ${goldScore(m,1)}점</div><div class="small">목표 ${STAGES[m.stageId-1].target+(m.difficulty==='hard'?180:0)}점</div></div></div>`;
+ return `<div class="board" role="img" aria-label="16칸 순환형 영토 보드">${cells.join('')}<div class="board-center">${artTag(faceSrc(m.current?STAGE_FACE[m.stageId]||'leo':'player'), m.current?'상대':'나','center-face')}<div>라운드 <b>${m.round}/${STAGES[m.stageId-1].maxRounds}</b></div><div class="score-me">나 ${goldScore(m,0)}점</div><div class="score-ai">AI ${goldScore(m,1)}점</div><div class="small">목표 ${STAGES[m.stageId-1].target+(m.difficulty==='hard'?180:0)}점</div></div>${dieHTML()}</div>`;
 }
 function fightControls(m){const p=m.players[0],t=getLandedTile(save);
  const units=[...new Set(p.hand.filter(id=>CARDS[id].kind==='unit'))];const items=availableItem(save);if(selectedUnit&&!units.includes(selectedUnit))selectedUnit=null;
@@ -58,7 +62,7 @@ function fightControls(m){const p=m.players[0],t=getLandedTile(save);
  const itemOptions=[btn('아이템 없음','select-item','data-id=""',!selectedItem?'chosen':'') , ...items.map(id=>btn(CARDS[id].name,'inspect',`data-id="${id}" data-intent="item"`,selectedItem===id?'chosen':''))].join('');
  return `<div class="prompt"><div class="go">${btn('침략 실행','invade',`${pv&&pv.cost<=p.gold?'':'disabled'}`)}${btn(`통행료 ${t.level*35+20}G`,'pass','','outline')}</div><div class="prompt-main"><b>적 영토: ${esc(CARDS[t.cardId].name)} Lv.${t.level}</b><div class="choices">${options||'손패에 침략용 유닛이 없습니다.'}</div><div class="choices">${itemOptions}</div>${pv?`<p class="preview ${pv.success?'win':'lose'}">예상 ${pv.success?'성공':'실패'} · 공격 ${pv.attack}/${pv.defenderHP} · 생존 ${pv.defense}/${pv.retaliation} · ${pv.cost}G</p>`:''}</div></div>`;
 }
-function turnUI(m){const p=m.players[0];if(m.ended)return `<div class="prompt"><div class="go">${btn('캠페인으로','finish','','primary')}</div><div class="prompt-main"><b>${m.winner===0?'승리':'패배'}</b><p class="small">${esc(m.reason)} · ${goldScore(m,0)} : ${goldScore(m,1)}</p></div></div>`;
+function turnUI(m){const p=m.players[0];if(fx) return `<div class="prompt"><b>${fx.who?'상대':'나'} ${fx.rolling?'주사위를 굴리는 중':'이동 중'} · ${fx.face}</b></div>`;if(m.ended)return `<div class="prompt"><div class="go">${btn('캠페인으로','finish','','primary')}</div><div class="prompt-main"><b>${m.winner===0?'승리':'패배'}</b><p class="small">${esc(m.reason)} · ${goldScore(m,0)} : ${goldScore(m,1)}</p></div></div>`;
  if(m.current===1)return '<div class="prompt">AI가 판단 중입니다…</div>';
  if(m.phase==='prep'){const spells=p.hand.filter(id=>legalSpell(save,id));const pay=m.salaryNotice?`<span class="salary">월급 +${m.salaryNotice}G</span>`:'';return `<div class="prompt"><div class="go">${btn('주사위 굴리기','roll','','primary')}</div><div class="prompt-main"><b>이동 준비</b>${pay}${spells.length?`<div class="choices">${spells.map(id=>btn(`${CARDS[id].name} 보기`,'inspect',`data-id="${id}" data-intent="spell"`,'outline')).join('')}</div>`:''}</div></div>`;}
  const t=getLandedTile(save);if(t.index===0||t.index===8)return `<div class="prompt"><div class="go">${btn('턴 종료','pass','','primary')}</div><div class="prompt-main"><b>거점</b><p class="small">이 칸에는 영토를 둘 수 없습니다.</p></div></div>`;
@@ -118,7 +122,7 @@ function doAction(act,id,el){
  case 'continue':page='game';break;
  case 'start':startMatch(save,Number(el.dataset.stage),el.dataset.diff);selectedUnit=null;selectedItem=null;sheet=null;page='game';sfx('tap');break;
  case 'spell':playSpell(save,id);sheet=null;sfx('spell');break;
- case 'roll':roll(save);sfx('dice');break;
+ case 'roll':{const who=save.match.current,from=save.match.players[who].pos;const steps=roll(save);startTravel(who,from,steps);return;}
  case 'place':place(save,id);sheet=null;sfx('summon');break;
  case 'upgrade':upgrade(save);sfx('upgrade');break;
  case 'pass':pass(save);sfx('tap');break;
@@ -136,18 +140,47 @@ function doAction(act,id,el){
  case 'reset':if(confirm('모든 진행 데이터를 초기화할까요? (복구 불가)')){save=newSave();page='home';status='새 게임을 시작했습니다.';}break;
  }render();queueAi();}
 const MUTATING=new Set(['spell','roll','place','upgrade','pass','invade','start','finish','surrender','deck-plus','deck-minus','craft','ticket','reset','recover-reset']);
-let actLock=0, aiTimer=null, audioReady=false, heardSalary=-1;
-function cueSalary(){const m=save.match;if(!m||m.ended||m.current!==0||!m.salaryNotice)return;if(heardSalary===m.turns)return;heardSalary=m.turns;sfx('salary');}
+let actLock=0, aiTimer=null, audioReady=false, heardSalary=-1, fx=null, fxTimer=null;
+function clearFxTimer(){if(fxTimer){clearTimeout(fxTimer);fxTimer=null;}}
+function startTravel(who,from,steps){
+  clearFxTimer();
+  if(!(steps>=1&&steps<=4)){fx=null;preserveScroll=true;render();return;}
+  fx={who,from,steps,tick:0,face:1,rolling:true};
+  preserveScroll=true;render();sfx('dice');
+  let spins=0;
+  const spin=()=>{
+    if(!fx||!fx.rolling) return;
+    spins++;
+    fx.face=spins>=7?steps:1+Math.floor(Math.random()*4);
+    const die=document.querySelector('.die'),face=document.querySelector('.die-face'),label=document.querySelector('.prompt b');
+    if(face) face.textContent=String(fx.face);
+    if(die) die.dataset.face=String(fx.face);
+    if(label) label.textContent=`${fx.who?'상대':'나'} 주사위를 굴리는 중 · ${fx.face}`;
+    if(spins>=7){fx.rolling=false;fx.face=steps;if(die){die.classList.remove('rolling');die.classList.add('landed');}if(face) face.textContent=String(steps);fxTimer=setTimeout(hop,360);return;}
+    fxTimer=setTimeout(spin,70);
+  };
+  fxTimer=setTimeout(spin,70);
+}
+function hop(){
+  if(!fx) return;
+  if(fx.tick>=fx.steps){fx=null;preserveScroll=true;render();return;}
+  fx.tick++;sfx('step');preserveScroll=true;render();
+  fxTimer=setTimeout(hop,320);
+}
+function cueSalary(){const m=save.match;if(fx||!m||m.ended||m.current!==0||!m.salaryNotice)return;if(heardSalary===m.turns)return;heardSalary=m.turns;sfx('salary');}
 function queueAi(){
-  if(aiTimer||!save.match||save.match.current!==1||save.match.ended) return;
+  if(fx||aiTimer||!save.match||save.match.current!==1||save.match.ended) return;
   aiTimer=setTimeout(()=>{
     aiTimer=null;
-    if(!save.match||save.match.current!==1||save.match.ended) return;
-    try{aiTurn(save);status='';}catch(e){status=`AI 오류: ${e.message}`;}
-    preserveScroll=true;render();
+    if(fx||!save.match||save.match.current!==1||save.match.ended) return;
+    const from=save.match.players[1].pos, rolled=save.match.phase==='prep';
+    try{aiTurn(save);status='';}catch(e){status=`AI 오류: ${e.message}`;preserveScroll=true;render();return;}
+    const steps=rolled?(save.match.players[1].pos-from+RING.length)%RING.length:0;
+    if(steps>=1&&steps<=4) startTravel(1,from,steps);
+    else {preserveScroll=true;render();}
   },90);
 }
-root.addEventListener('click',e=>{const first=!audioReady;unlockAudio();audioReady=true;if(first){heardSalary=-1;cueSalary();}const el=e.target.closest('[data-action]');if(!el||el.disabled)return;const act=el.dataset.action;if(MUTATING.has(act)&&Date.now()<actLock)return;if(MUTATING.has(act))actLock=Date.now()+320;try{status='';doAction(act,el.dataset.id,el);}catch(err){status=err.message;render();}});
+root.addEventListener('click',e=>{const first=!audioReady;unlockAudio();audioReady=true;if(first){heardSalary=-1;cueSalary();}const el=e.target.closest('[data-action]');if(!el||el.disabled)return;const act=el.dataset.action;if(fx&&act!=='mute')return;if(MUTATING.has(act)&&Date.now()<actLock)return;if(MUTATING.has(act))actLock=Date.now()+320;try{status='';doAction(act,el.dataset.id,el);}catch(err){status=err.message;render();}});
 root.addEventListener('change',async e=>{if(e.target.id!=='import-file')return;const file=e.target.files?.[0];if(!file)return;
  try{const next=loadSave(await file.text());validateDeck(next);save=next;page='home';status='백업에서 진행 기록을 복구했습니다.';}catch(err){status=`복원 취소: ${err.message}`;}render();});
 render();

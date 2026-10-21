@@ -48,6 +48,7 @@ export function sfx(name){
   const t=ctx.currentTime, bus=sfxGain;
   const jitter=1+(Math.random()*0.06-0.03);
   if(name==='dice'){tone(420*jitter,0.08,'triangle',0.2,t,bus);tone(640*jitter,0.09,'square',0.08,t+0.07,bus);}
+  else if(name==='step'){tone(210,0.06,'sine',0.1,t,bus);tone(420,0.05,'triangle',0.05,t+0.02,bus);}
   else if(name==='summon'){tone(220,0.16,'sine',0.22,t,bus);tone(440,0.2,'triangle',0.16,t+0.05,bus);tone(660,0.18,'sine',0.08,t+0.1,bus);}
   else if(name==='salary'){tone(523,0.12,'sine',0.16,t,bus);tone(659,0.14,'sine',0.14,t+0.08,bus);tone(784,0.18,'triangle',0.1,t+0.16,bus);}
   else if(name==='upgrade'){tone(300,0.1,'triangle',0.14,t,bus);tone(450,0.14,'triangle',0.12,t+0.08,bus);}
