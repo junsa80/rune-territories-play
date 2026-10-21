@@ -46,6 +46,7 @@ export function startMatch(s,stageId,difficulty='normal') {
     tiles:TILE_ELEMENTS.map((element,i)=>({index:i,element,owner:null,cardId:null,level:0}))};
   for(const p of s.match.players)refill(s,p);
   log(s,`[대전] ${stage.name} · ${difficulty==='hard'?'어려움':'일반'} 시작`);
+  grantSalary(s);
 }
 export function goldScore(m,id) {const p=m.players[id];return p.gold+m.tiles.filter(t=>t.owner===id).reduce((acc,t)=>acc+(70+CARDS[t.cardId].cost+t.level*85),0);}
 export function ownerLands(m,id) {return m.tiles.filter(t=>t.owner===id);}
@@ -56,7 +57,7 @@ export function playSpell(s,id){ensure(legalSpell(s,id),'이 시점에 사용할
  if(c.effect==='drain')m.players[1-m.current].gold=Math.max(0,m.players[1-m.current].gold-c.power);
  removeHand(p,id);p.spellUsed=true;log(s,`[${m.current?'AI':'나'}] ${c.name} 사용`);
 }
-export function roll(s){const m=s.match;ensure(m&&m.phase==='prep','굴릴 수 없는 상태');const p=m.players[m.current];const steps=randInt(s,1,4);m.steps=steps;
+export function roll(s){const m=s.match;ensure(m&&m.phase==='prep','굴릴 수 없는 상태');const p=m.players[m.current];const steps=randInt(s,1,4);m.steps=steps;m.salaryNotice=0;
  for(let i=0;i<steps;i++){p.pos=(p.pos+1)%RING.length;if(p.pos===0)p.gold+=65;}
  m.phase='land';const t=m.tiles[p.pos];log(s,`[${m.current?'AI':'나'}] 주사위 ${steps}, ${p.pos}번 칸 (${t.element})`);return steps;
 }
@@ -98,12 +99,14 @@ export function pass(s){const m=s.match;ensure(m&&m.phase==='land','행동 종�
  else log(s,`[${m.current?'AI':'나'}] 영토 행동 생략`);
  completeTurn(s);
 }
-function completeTurn(s){const m=s.match,p=m.players[m.current];p.gold+=m.current===1&&m.difficulty==='hard'?38:32;refill(s,p);p.spellUsed=false;m.turns++;
+function salaryOf(m,who){return who===1&&m.difficulty==='hard'?38:32;}
+function grantSalary(s){const m=s.match;if(!m||m.ended)return;const pay=salaryOf(m,m.current);m.players[m.current].gold+=pay;m.salaryNotice=pay;log(s,`[월급] ${m.current?'AI':'나'} 턴 시작 +${pay}G`);}
+function completeTurn(s){const m=s.match,p=m.players[m.current];refill(s,p);p.spellUsed=false;m.turns++;
  // Never end a match before a few real decisions. Otherwise award to score leader on turn cap.
  const target=currentStage(s).target+(m.difficulty==='hard'?180:0);
  if(m.round>=8 && goldScore(m,m.current)>=target){finish(s,m.current,'목표 자산 도달');return;}
  if(m.current===1){if(m.round>=currentStage(s).maxRounds){const a=goldScore(m,0),b=goldScore(m,1);finish(s,a>=b?0:1,'턴 제한');return;}m.round++;}
- m.current=1-m.current;m.phase='prep';
+ m.current=1-m.current;m.phase='prep';grantSalary(s);
 }
 export function availableItem(s){const m=s.match,p=m.players[m.current];return p.hand.filter(id=>CARDS[id].kind==='item');}
 function bestSpell(s){
