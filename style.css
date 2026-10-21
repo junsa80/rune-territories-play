@@ -49,3 +49,29 @@ img.pawn.ai{border-color:#ff9d7b}
   .sheet{border-radius:16px 16px 0 0}
   body.ingame .tile-unit{font-size:7px}
 }
+
+/* Command buttons stay on screen. The prep text must not cover the dice. */
+.go{display:flex;gap:6px;flex:0 0 auto}
+.go button{flex:1 1 0;min-height:48px}
+.prompt-main{min-width:0}
+.mini-card[data-action]{cursor:pointer}
+.salary{display:inline;margin:0 0 0 8px}
+@media(max-width:720px){
+  body.ingame .topbar{padding:6px 8px;gap:4px}
+  body.ingame .navbtn{min-height:32px;padding:4px}
+  body.ingame .game-header{gap:4px}
+  body.ingame .game-header .quiet{padding:4px 8px;min-height:32px}
+  body.ingame .board{width:min(100%,28dvh,240px);max-height:30dvh;flex:0 1 auto;min-height:0;overflow:hidden}
+  body.ingame .board-center{gap:1px}
+  body.ingame .center-face{width:28px;height:28px}
+  body.ingame .score-me,body.ingame .score-ai{font-size:12px}
+  body.ingame .hand{flex:0 1 108px;max-height:112px;min-height:0;overflow:hidden}
+  body.ingame .hand .card-art{height:40px;margin-bottom:2px}
+  body.ingame .hand .mini-card{min-width:112px;max-width:132px;padding:4px}
+  body.ingame .hand .mini-card .small,body.ingame .hand .card-desc{display:none}
+  body.ingame .dock{flex:0 0 auto;min-height:0;max-height:46%;display:flex;flex-direction:column;overflow:hidden}
+  body.ingame .dock .prompt{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding:8px}
+  body.ingame .prompt-main{flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+  body.ingame .go{margin:0 0 6px}
+  body.ingame .battle-log{display:none}
+}
