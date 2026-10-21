@@ -55,6 +55,8 @@ img.pawn.ai{border-color:#ff9d7b}
 .go button{flex:1 1 0;min-height:48px}
 .prompt-main{min-width:0}
 .mini-card[data-action]{cursor:pointer}
+.mini-card.chosen{outline:2px solid #f8d78d;outline-offset:-2px}
+.board-slot{min-width:0}
 .salary{display:inline;margin:0 0 0 8px}
 @media(max-width:720px){
   body.ingame .topbar{padding:6px 8px;gap:4px}
@@ -64,21 +66,27 @@ img.pawn.ai{border-color:#ff9d7b}
   body.ingame .game-header .quiet{padding:4px 8px;min-height:32px;flex:0 0 auto}
   body.ingame #app{padding-left:4px;padding-right:4px}
   body.ingame .game-area{padding:6px 4px}
-  body.ingame .board{width:min(100%,calc(100dvh - 340px));max-width:100%;max-height:none;aspect-ratio:1/1;height:auto;margin:0 auto;flex:0 0 auto;overflow:hidden}
+  body.ingame .board-slot{flex:1 1 0;min-height:120px;min-width:0;width:100%;display:flex;align-items:center;justify-content:center;container-type:size}
+  body.ingame .game-side{flex:0 0 auto}
+  body.ingame .board{width:min(100cqw,100cqh);height:min(100cqw,100cqh);max-width:100%;max-height:none;aspect-ratio:1/1;margin:0 auto;flex:0 0 auto;overflow:hidden}
   body.ingame .board-center{gap:4px}
   body.ingame .center-face{width:42px;height:42px}
   body.ingame .score-me,body.ingame .score-ai{font-size:15px}
   body.ingame .tile-top,body.ingame .tile-unit{font-size:10px}
   body.ingame .hand{flex:0 0 auto;max-height:none;min-width:0;width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain}
   body.ingame .hand-row{display:flex;flex-wrap:nowrap;width:max-content;min-width:100%;max-width:none;overflow:visible;gap:8px}
-  body.ingame .hand .card-art{height:72px;margin-bottom:4px}
-  body.ingame .hand .mini-card{flex:0 0 136px;min-width:136px;max-width:136px;padding:6px}
+  body.ingame .hand .card-art{height:48px;margin-bottom:2px}
+  body.ingame .hand .mini-card{flex:0 0 104px;min-width:104px;max-width:104px;padding:4px}
+  body.ingame .hand > b{display:none}
+  body.ingame .hand{padding:4px 6px}
   body.ingame .hand .mini-card .small,body.ingame .hand .card-desc{display:none}
   body.ingame .choices{touch-action:pan-x;overscroll-behavior-x:contain}
-  body.ingame .dock{flex:0 0 auto;min-height:0;max-height:46%;display:flex;flex-direction:column;overflow:hidden}
-  body.ingame .dock .prompt{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding:8px}
-  body.ingame .prompt-main{flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
-  body.ingame .go{margin:0 0 6px}
+  body.ingame .dock{flex:0 0 auto;min-height:0;max-height:none;display:flex;flex-direction:column;overflow:visible}
+  body.ingame .dock .prompt{flex:0 0 auto;min-height:0;display:flex;flex-direction:column;overflow:visible;padding:8px}
+  body.ingame .prompt-main{flex:0 1 auto;min-height:0;max-height:none;overflow:visible}
+  body.ingame .prompt-main .unit-choices{display:none}
+  body.ingame .go{margin:0 0 6px;position:relative;z-index:2}
+  body.ingame .go button{min-height:48px;padding:8px 6px;font-size:14px}
   body.ingame .battle-log{display:none}
 }
 .die{position:absolute;left:50%;top:46%;z-index:6;width:84px;height:84px;margin:0;transform:translate(-50%,-50%);border-radius:16px;background:linear-gradient(160deg,#fffaf0,#e7d3a4);color:#24180c;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 12px 28px #000c,inset 0 0 0 3px #c4a46a;pointer-events:none}

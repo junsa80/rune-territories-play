@@ -34,13 +34,32 @@ const STAGE_FACE={1:'leo',2:'mira',3:'ar'};
 function cardSrc(id){return `./art/cards/${id}.png`;}
 function faceSrc(name){return `./art/chars/${name}.png`;}
 function artTag(src, alt, cls){return `<img class="${cls}" src="${src}" alt="${esc(alt)}" draggable="false">`;}
-function cardMini(id,controls='',attrs=''){const c=CARDS[id];return `<div class="mini-card" ${attrs}>${artTag(cardSrc(id),c.name,'card-art')}<div class="card-title">${badge(c.rarity)} <b>${esc(c.name)}</b></div><div class="small">${ELEMENTS[c.element]} · ${kind(c)} · ${c.cost}G${c.kind==='unit'?` · ${c.atk}/${c.hp}`:''}</div><div class="card-desc">${esc(c.desc)}</div>${controls}</div>`;}
+function cardMini(id,controls='',attrs='',chosen=false){const c=CARDS[id];return `<div class="mini-card${chosen?' chosen':''}" ${attrs}>${artTag(cardSrc(id),c.name,'card-art')}<div class="card-title">${badge(c.rarity)} <b>${esc(c.name)}</b></div><div class="small">${ELEMENTS[c.element]} · ${kind(c)} · ${c.cost}G${c.kind==='unit'?` · ${c.atk}/${c.hp}`:''}</div><div class="card-desc">${esc(c.desc)}</div>${controls}</div>`;}
 function nav(){return `<header class="topbar"><div><b>✦ 룬 영토</b><span class="sub"> Alpha ${VERSION}</span> ${btn(muted()?'소리 끔':'소리 켬','mute','','quiet')}</div><div class="nav">${btn('캠페인','home','','navbtn')}${btn('덱·도감','collection','','navbtn')}${btn('로그','logs','','navbtn')}${btn('백업','backup','','navbtn')}</div></header>`;}
 function home(){const p=save.progress;return `<section class="intro"><h1>영토와 카드의 전술</h1><p>1인용 모바일 웹 프로토타입. <b>영토 선점·자원 투자·침략</b>을 선택하는 1:1 AI 캠페인입니다.</p><div class="pills"><span>🪙 재료 ${save.dust}</span><span>🎟️ 선택권 ${save.tickets}</span><span>🃏 덱 ${save.deck.length}/${DECK_SIZE}</span></div></section>${save.match?`<div class="notice">진행 중인 대전이 있습니다. ${btn('대전 계속','continue')}</div>`:''}
 <section class="section"><h2>캠페인</h2><div class="stage-grid">${STAGES.map(st=>{const lock=st.id>p.highestUnlocked,won=p.wins[st.id]||0;return `<article class="stage"><div class="stage-head"><b>${st.id}. ${esc(st.name)}</b><span>${lock?'🔒':p.cleared.includes(st.id)?'✓ 클리어':'도전 가능'}</span></div><p>${esc(st.focus)} · 상대: ${esc(st.enemy)}</p><p class="small">승리 ${won}회 · 반복 3승마다 선택권 1장 (첫 승 이후) · 일일 첫 승리 보상 ×2</p><div class="stage-buttons">${btn('카드 확인','deckcheck',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('일반 대전','start',`data-stage="${st.id}" data-diff="normal" ${lock||!!save.match?'disabled':''}`)}${btn('어려움','start',`data-stage="${st.id}" data-diff="hard" ${lock||!p.cleared.includes(st.id)||!!save.match?'disabled':''}`,'outline')}</div></article>`;}).join('')}</div></section>${rewardHTML()}<section class="section"><h2>알파 0.1 범위</h2><p class="small">현재는 <b>16칸 보드·카드 26종·스테이지 3개</b>로 핵심 규칙을 검증합니다. 컬드셉트 전체 규칙을 복제하지 않았으며, 종족/복합 종족·맵 확장·복잡한 전투 연계는 후속 연구 항목입니다.</p></section>`;}
 function rewardHTML(){const r=save.lastReward;if(!r)return '';if(r.loss)return `<section class="notice">최근 경기: 패배 · 제작 재료 +${r.dust}</section>`;
  const counters={};for(const v of r.pulled||[]){const c=CARDS[v.id];const k=`${c.rarity}:${v.id}:${v.converted?'dust':'card'}`;counters[k]=(counters[k]||0)+1;}
  return `<section class="section rewards"><h2>최근 획득 보상</h2><p>스테이지 ${r.stageId} 카드팩 ${r.packs}개${r.daily?' · 오늘 첫 승리 ×2':''}${r.first?' · 최초 클리어':''}${r.ticket?' · 선택권 +1':''}</p><p class="small">이 팩은 방금 이긴 스테이지 카드만 나옵니다. 선택권과 제작은 이미 클리어한 스테이지 전체입니다.</p>${r.key?`<p class="key-reward">확정 공략 카드: <b>${esc(CARDS[r.key.id].name)}</b>${r.key.converted?' (보유 상한 → 재료)':''}</p>`:''}<div class="reward-grid">${Object.entries(counters).map(([k,v])=>{const [rarity,id,type]=k.split(':');return `<div class="reward-row">${badge(rarity)} ${esc(CARDS[id].name)} ×${v} ${type==='dust'?'↪ 재료':''}</div>`;}).join('')}</div></section>`;
+}
+function unitPool(kind){
+  const m=save.match;if(!m)return [];
+  if(kind==='place') return [...new Set(placementOptions(save))];
+  return [...new Set(m.players[0].hand.filter(id=>CARDS[id].kind==='unit'))];
+}
+function ensureSelected(pool){if(!pool.length){selectedUnit=null;return;}if(!pool.includes(selectedUnit))selectedUnit=pool[0];}
+function handAttrs(id){
+  const m=save.match,c=CARDS[id];
+  if(m&&!m.ended&&m.current===0&&!fx){
+    if(m.phase==='prep'&&c.kind==='spell'&&legalSpell(save,id)) return ['inspect','spell',false];
+    if(m.phase==='land'){
+      const t=getLandedTile(save);
+      if(t.owner===null&&c.kind==='unit'&&placementOptions(save).includes(id)) return ['select-unit','place',id===selectedUnit];
+      if(t.owner===1&&c.kind==='unit') return ['select-unit','invade',id===selectedUnit];
+      if(t.owner===1&&c.kind==='item') return ['inspect','item',id===selectedItem];
+    }
+  }
+  return ['inspect','view',false];
 }
 function shownPos(m,who){if(fx&&fx.who===who) return (fx.from+fx.tick)%RING.length; return m.players[who].pos;}
 function dieHTML(){if(!fx) return ''; return `<div class="die ${fx.rolling?'rolling':'landed'}" data-face="${fx.face}" aria-hidden="true"><b class="die-face">${fx.face}</b></div>`;}
@@ -54,23 +73,31 @@ function board(m){let cells=[];const focus=fx?(fx.from+fx.tick)%RING.length:(m.p
  return `<div class="board" role="img" aria-label="16칸 순환형 영토 보드">${cells.join('')}<div class="board-center">${artTag(faceSrc(m.current?STAGE_FACE[m.stageId]||'leo':'player'), m.current?'상대':'나','center-face')}<div>라운드 <b>${m.round}/${STAGES[m.stageId-1].maxRounds}</b></div><div class="score-me">나 ${goldScore(m,0)}점</div><div class="score-ai">AI ${goldScore(m,1)}점</div><div class="small">목표 ${STAGES[m.stageId-1].target+(m.difficulty==='hard'?180:0)}점</div></div>${dieHTML()}</div>`;
 }
 function fightControls(m){const p=m.players[0],t=getLandedTile(save);
- const units=[...new Set(p.hand.filter(id=>CARDS[id].kind==='unit'))];const items=availableItem(save);if(selectedUnit&&!units.includes(selectedUnit))selectedUnit=null;
+ const units=unitPool('invade');const items=availableItem(save);
  if(selectedItem&&!items.includes(selectedItem))selectedItem=null;
- if(!selectedUnit)selectedUnit=units[0]||null;
+ ensureSelected(units);
  let pv=null;try{if(selectedUnit)pv=combatPreview(save,selectedUnit,selectedItem);}catch(e){}
- const options=units.map(id=>btn(CARDS[id].name, 'inspect',`data-id="${id}" data-intent="invade"` ,id===selectedUnit?'chosen':'' )).join('');
- const itemOptions=[btn('아이템 없음','select-item','data-id=""',!selectedItem?'chosen':'') , ...items.map(id=>btn(CARDS[id].name,'inspect',`data-id="${id}" data-intent="item"`,selectedItem===id?'chosen':''))].join('');
- return `<div class="prompt"><div class="go">${btn('침략 실행','invade',`${pv&&pv.cost<=p.gold?'':'disabled'}`)}${btn(`통행료 ${t.level*35+20}G`,'pass','','outline')}</div><div class="prompt-main"><b>적 영토: ${esc(CARDS[t.cardId].name)} Lv.${t.level}</b><div class="choices">${options||'손패에 침략용 유닛이 없습니다.'}</div><div class="choices">${itemOptions}</div>${pv?`<p class="preview ${pv.success?'win':'lose'}">예상 ${pv.success?'성공':'실패'} · 공격 ${pv.attack}/${pv.defenderHP} · 생존 ${pv.defense}/${pv.retaliation} · ${pv.cost}G</p>`:''}</div></div>`;
+ const can=!!(selectedUnit&&pv&&pv.cost<=p.gold);
+ const options=units.map(id=>btn(CARDS[id].name,'select-unit',`data-id="${id}"`,id===selectedUnit?'chosen':'')).join('');
+ const itemOptions=[btn('아이템 없음','select-item','data-id=""',!selectedItem?'chosen':'') , ...items.map(id=>btn(CARDS[id].name,'select-item',`data-id="${id}"`,selectedItem===id?'chosen':''))].join('');
+ const go=`${btn('침략','invade',`${can?'':'disabled'} data-id="${selectedUnit||''}"`,'primary')}${units.length>1?btn('다음 유닛','next-unit','data-pool="invade"','outline'):''}${btn('통행','pass','','outline')}`;
+ const look=selectedUnit?btn('보기','inspect',`data-id="${selectedUnit}" data-intent="invade"`,'outline small-button'):'';
+ return `<div class="prompt"><div class="go">${go}</div><div class="prompt-main"><b>적 영토: ${esc(CARDS[t.cardId].name)} Lv.${t.level}</b>${pv?`<p class="preview ${pv.success?'win':'lose'}">${esc(CARDS[selectedUnit].name)} · ${pv.success?'성공':'실패'} 예상 · ${pv.cost}G ${look}</p>`:''}<div class="choices unit-choices">${options||'손패에 침략용 유닛이 없습니다.'}</div><div class="choices">${itemOptions}</div></div></div>`;
 }
 function turnUI(m){const p=m.players[0];if(fx) return `<div class="prompt"><b>${fx.who?'상대':'나'} ${fx.rolling?'주사위를 굴리는 중':'이동 중'} · ${fx.face}</b></div>`;if(m.ended)return `<div class="prompt"><div class="go">${btn('캠페인으로','finish','','primary')}</div><div class="prompt-main"><b>${m.winner===0?'승리':'패배'}</b><p class="small">${esc(m.reason)} · ${goldScore(m,0)} : ${goldScore(m,1)}</p></div></div>`;
  if(m.current===1)return '<div class="prompt">AI가 판단 중입니다…</div>';
  if(m.phase==='prep'){const spells=p.hand.filter(id=>legalSpell(save,id));const pay=m.salaryNotice?`<span class="salary">월급 +${m.salaryNotice}G</span>`:'';return `<div class="prompt"><div class="go">${btn('주사위 굴리기','roll','','primary')}</div><div class="prompt-main"><b>이동 준비</b>${pay}${spells.length?`<div class="choices">${spells.map(id=>btn(`${CARDS[id].name} 보기`,'inspect',`data-id="${id}" data-intent="spell"`,'outline')).join('')}</div>`:''}</div></div>`;}
  const t=getLandedTile(save);if(t.index===0||t.index===8)return `<div class="prompt"><div class="go">${btn('턴 종료','pass','','primary')}</div><div class="prompt-main"><b>거점</b><p class="small">이 칸에는 영토를 둘 수 없습니다.</p></div></div>`;
- if(t.owner===null){const opts=placementOptions(save);return `<div class="prompt"><div class="go">${btn('배치하지 않기','pass','','outline')}</div><div class="prompt-main"><b>빈 영토 · ${ELEMENTS[t.element]}</b><div class="choices">${[...new Set(opts)].map(id=>btn(`${CARDS[id].name} 보기`,'inspect',`data-id="${id}" data-intent="place"`)).join('')||'배치할 손패 유닛이 없습니다.'}</div></div></div>`;}
+ if(t.owner===null){const opts=unitPool('place');ensureSelected(opts);const c=selectedUnit&&CARDS[selectedUnit];
+  const go=c?`${btn('배치','place',`data-id="${c.id}"`,'primary')}${opts.length>1?btn('다음 유닛','next-unit','data-pool="place"','outline'):''}${btn('안 둠','pass','','outline')}`:btn('안 둠','pass','','primary');
+  return `<div class="prompt"><div class="go">${go}</div><div class="prompt-main"><b>빈 영토 · ${ELEMENTS[t.element]}</b>${c?`<p class="small">선택 <b>${esc(c.name)}</b> · ${c.cost}G · ${ELEMENTS[c.element]} ${c.atk}/${c.hp} ${btn('보기','inspect',`data-id="${c.id}" data-intent="place"`,'outline small-button')}</p>`:'<p class="small">배치할 손패 유닛이 없습니다.</p>'}<div class="choices unit-choices">${opts.map(id=>btn(CARDS[id].name,'select-unit',`data-id="${id}"`,id===selectedUnit?'chosen':'')).join('')}</div></div></div>`;}
  if(t.owner===0){const cost=45*t.level;return `<div class="prompt"><div class="go">${btn(`강화 ${cost}G`,'upgrade',`${t.level>=3||p.gold<cost?'disabled':''}`)}${btn('유지','pass','','outline')}</div><div class="prompt-main"><b>내 영토 Lv.${t.level}</b></div></div>`;}
  return fightControls(m);
 }
-function game(){const m=save.match;if(!m)return home();const p=m.players[0];return `<section class="game-area"><div class="game-header"><b>${esc(STAGES[m.stageId-1].name)} · ${m.difficulty==='hard'?'어려움':'일반'}</b><span>💰 ${p.gold}G · AI ${m.players[1].gold}G</span>${!m.ended?btn('항복','surrender','','quiet small-button'):''}</div><div class="game-layout">${board(m)}<div class="game-side"><div class="dock">${turnUI(m)}</div><div class="hand"><b>손패 ${p.hand.length}</b><div class="hand-row">${p.hand.map(id=>cardMini(id,'',`data-action="inspect" data-id="${id}" data-intent="view"`)).join('')||'<p>손패 없음</p>'}</div></div><details class="battle-log"><summary>전투 로그</summary><div>${save.log.slice(0,12).map(s=>`<p>${esc(s)}</p>`).join('')}</div></details></div></div></section>`;}
+function game(){const m=save.match;if(!m)return home();const p=m.players[0];
+ if(m.phase==='land'&&m.current===0&&!m.ended){const t=getLandedTile(save);if(t.owner===null)ensureSelected(unitPool('place'));else if(t.owner===1)ensureSelected(unitPool('invade'));}
+ const cards=p.hand.map(id=>{const [act,intent,chosen]=handAttrs(id);return cardMini(id,'',`data-action="${act}" data-id="${id}" data-intent="${intent}"`,chosen);}).join('');
+ return `<section class="game-area"><div class="game-header"><b>${esc(STAGES[m.stageId-1].name)} · ${m.difficulty==='hard'?'어려움':'일반'}</b><span>💰 ${p.gold}G · AI ${m.players[1].gold}G</span>${!m.ended?btn('항복','surrender','','quiet small-button'):''}</div><div class="game-layout"><div class="board-slot">${board(m)}</div><div class="game-side"><div class="dock">${turnUI(m)}</div><div class="hand"><b>손패 ${p.hand.length}</b><div class="hand-row">${cards||'<p>손패 없음</p>'}</div></div><details class="battle-log"><summary>전투 로그</summary><div>${save.log.slice(0,12).map(s=>`<p>${esc(s)}</p>`).join('')}</div></details></div></div></section>`;}
 function deckCheck(){const st=STAGES.find(x=>x.id===previewStage)||STAGES[0];return `<section class="section"><h1>대전 전 카드 확인</h1><div class="boss-row">${artTag(faceSrc(STAGE_FACE[st.id]),st.enemy,'boss-face')}<div><b>${esc(st.name)}</b><p>상대 ${esc(st.enemy)} · ${esc(st.focus)}</p><p class="small">내 덱의 그림과 능력을 확인한 다음 대전을 시작하세요.</p></div></div><div class="collection-grid">${save.deck.map(id=>cardMini(id, btn('크게 보기','inspect',`data-id="${id}" data-intent="view"`,'small-button outline'))).join('')}</div><div class="action-row">${btn('이 덱으로 일반 대전','start',`data-stage="${st.id}" data-diff="normal" ${save.match?'disabled':''}`,'primary')}${btn('캠페인으로','home','','outline')}</div></section>`;}
 function sheetHTML(){if(!sheet||!CARDS[sheet.id])return '';const c=CARDS[sheet.id];let play='';
  if(sheet.intent==='place') play=btn('확인하고 배치','place',`data-id="${c.id}"`,'primary');
@@ -126,7 +153,8 @@ function doAction(act,id,el){
  case 'place':place(save,id);sheet=null;sfx('summon');break;
  case 'upgrade':upgrade(save);sfx('upgrade');break;
  case 'pass':pass(save);sfx('tap');break;
- case 'select-unit':selectedUnit=id;sheet=null;break;
+ case 'select-unit':selectedUnit=id;sheet=null;sfx('tap');break;
+ case 'next-unit':{const pool=unitPool(el.dataset.pool==='invade'?'invade':'place');if(pool.length){const i=pool.indexOf(selectedUnit);selectedUnit=pool[(i+1)%pool.length];}sfx('tap');break;}
  case 'select-item':selectedItem=id||null;sheet=null;sfx('tap');break;
  case 'invade':if(id)selectedUnit=id;if(!selectedUnit)throw new Error('침략 유닛을 선택하세요.');{const ok=invade(save,selectedUnit,selectedItem);sfx(ok?'hit':'fail');}selectedUnit=null;selectedItem=null;sheet=null;break;
  case 'finish':{const won=save.match?.winner===0;endMatch(save);page='home';sheet=null;sfx(won?'win':'lose');}break;
@@ -145,7 +173,7 @@ function clearFxTimer(){if(fxTimer){clearTimeout(fxTimer);fxTimer=null;}}
 function startTravel(who,from,steps){
   clearFxTimer();
   if(!(steps>=1&&steps<=4)){fx=null;preserveScroll=true;render();return;}
-  fx={who,from,steps,tick:0,face:1,rolling:true};
+  fx={who,from,steps,tick:0,face:1,rolling:true,until:Date.now()+1600+steps*380};
   preserveScroll=true;render();sfx('dice');
   let spins=0;
   const spin=()=>{
@@ -162,10 +190,12 @@ function startTravel(who,from,steps){
   fxTimer=setTimeout(spin,70);
 }
 function hop(){
-  if(!fx) return;
-  if(fx.tick>=fx.steps){fx=null;preserveScroll=true;render();return;}
-  fx.tick++;sfx('step');preserveScroll=true;render();
-  fxTimer=setTimeout(hop,320);
+  try{
+    if(!fx) return;
+    if(fx.tick>=fx.steps){fx=null;preserveScroll=true;render();return;}
+    fx.tick++;sfx('step');preserveScroll=true;render();
+    fxTimer=setTimeout(hop,320);
+  }catch(e){clearFxTimer();fx=null;status=e.message;preserveScroll=true;render();}
 }
 function cueSalary(){const m=save.match;if(fx||!m||m.ended||m.current!==0||!m.salaryNotice)return;if(heardSalary===m.turns)return;heardSalary=m.turns;sfx('salary');}
 function queueAi(){
@@ -180,7 +210,7 @@ function queueAi(){
     else {preserveScroll=true;render();}
   },90);
 }
-root.addEventListener('click',e=>{const first=!audioReady;unlockAudio();audioReady=true;if(first){heardSalary=-1;cueSalary();}const el=e.target.closest('[data-action]');if(!el||el.disabled)return;const act=el.dataset.action;if(fx&&act!=='mute')return;if(MUTATING.has(act)&&Date.now()<actLock)return;if(MUTATING.has(act))actLock=Date.now()+320;try{status='';doAction(act,el.dataset.id,el);}catch(err){status=err.message;render();}});
+root.addEventListener('click',e=>{const first=!audioReady;unlockAudio();audioReady=true;if(first){heardSalary=-1;cueSalary();}const el=e.target.closest('[data-action]');if(!el||el.disabled)return;const act=el.dataset.action;if(fx&&fx.until&&Date.now()>fx.until){clearFxTimer();fx=null;}if(fx&&act!=='mute')return;if(MUTATING.has(act)&&Date.now()<actLock)return;if(MUTATING.has(act))actLock=Date.now()+320;try{status='';doAction(act,el.dataset.id,el);}catch(err){status=err.message;render();}});
 root.addEventListener('change',async e=>{if(e.target.id!=='import-file')return;const file=e.target.files?.[0];if(!file)return;
  try{const next=loadSave(await file.text());validateDeck(next);save=next;page='home';status='백업에서 진행 기록을 복구했습니다.';}catch(err){status=`복원 취소: ${err.message}`;}render();});
 render();
