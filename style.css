@@ -212,3 +212,8 @@ img.pawn.active{width:22px;height:22px;z-index:5;box-shadow:0 0 0 2px #fff}
 .board{overflow:hidden}
 .board-center,.tile,.tile-art{min-width:0;min-height:0;overflow:hidden}
 .board .summon,.board .pawn,.board .center-face{min-width:0;max-width:100%;max-height:100%;height:auto}
+.tile-art,.summon{display:none}
+.card-title,.card-title b,.mini-card,.board-center{writing-mode:horizontal-tb}
+.card-title{flex-wrap:wrap}
+.card-title b{white-space:normal}
+.board-center .score-me,.board-center .score-ai,.board-center .small{white-space:nowrap}

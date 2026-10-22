@@ -1,5 +1,5 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.32';
-import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement} from './game.js?v=0.1.32';
+import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.34';
+import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement} from './game.js?v=0.1.34';
 import {unlockAudio, sfx, toggleMute, muted} from './audio.js';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
@@ -98,8 +98,7 @@ function board(m){let cells=[];const n=m.tiles.length;const focus=fx?(fx.from+fx
   const struck=m.battleResult&&m.battleResult.tile===i?' struck':'';
   const who=t.owner===0?'나':t.owner===1?'적':'';
   const label=ev?ev.name:(unit?unit.name:ELEMENTS[t.element]);
-  const summon=unit?artTag(cardSrc(unit.id),unit.name,'summon'):'';
-  cells.push(`<div class="tile el-${t.element}${ev?' event':''}${matched?' matched':''} owner-${t.owner===null?'none':t.owner}${here}${struck}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(label)}"><div class="tile-top"><span class="el-chip ${ev?'event':t.element}">${ev?'이벤트':ELEMENTS[t.element]}</span>${matched?'<span class="match-flag">일치</span>':''}${who?`<span class="who">${who}</span>`:`<b>${t.level?'★'.repeat(t.level):''}</b>`}</div><div class="tile-art">${summon}</div><div class="tile-unit">${esc(label)}${who&&t.level?` <i>Lv${t.level}</i>`:''}</div>${here?'<span class="here-flag">현재</span>':''}<div class="tile-pawns">${markers}</div></div>`);}
+  cells.push(`<div class="tile el-${t.element}${ev?' event':''}${matched?' matched':''} owner-${t.owner===null?'none':t.owner}${here}${struck}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(label)}"><div class="tile-top"><span class="el-chip ${ev?'event':t.element}">${ev?'이벤트':ELEMENTS[t.element]}</span>${matched?'<span class="match-flag">일치</span>':''}${who?`<span class="who">${who}</span>`:`<b>${t.level?'★'.repeat(t.level):''}</b>`}</div><div class="tile-unit">${esc(label)}${who&&t.level?` <i>Lv${t.level}</i>`:''}</div>${here?'<span class="here-flag">현재</span>':''}<div class="tile-pawns">${markers}</div></div>`);}
  return `<div class="board" style="grid-template-columns:repeat(${m.w},minmax(0,1fr));grid-template-rows:repeat(${m.h},minmax(0,1fr))" role="img" aria-label="${n}칸 순환형 영토 보드">${cells.join('')}<div class="board-center" style="grid-column:2/${m.w};grid-row:2/${m.h}">${artTag(faceSrc(m.current?STAGE_FACE[m.stageId]||'leo':'player'), m.current?'상대':'나','center-face')}<div>라운드 <b>${m.round}/${STAGES[m.stageId-1].maxRounds}</b></div><div class="score-me">나 ${goldScore(m,0)}점</div><div class="score-ai">AI ${goldScore(m,1)}점</div><div class="small">목표 ${STAGES[m.stageId-1].target+(m.difficulty==='hard'?180:0)}점</div></div>${dieHTML()}</div>`;
 }
 function supportChoices(extra=0){

@@ -1,7 +1,7 @@
 // All cards in this prototype are original placeholders, not extracted from any commercial game.
 export const VERSION = '0.1.0';
 export const UPDATES = [
-  {date:'2026-10-22', title:'맵 표시', text:'휴대폰에서 보드가 다시 보입니다. 경기 화면은 스크롤됩니다.'},
+  {date:'2026-10-22', title:'맵', text:'보드 칸에는 카드 그림을 올리지 않습니다. 고리 칸과 점수만 보입니다.'},
   {date:'2026-10-22', title:'주문·공격·퇴각', text:'주문 결과, 공격 성공과 막힘, 퇴각 통행료가 보드 위에 뜹니다.'},
   {date:'2026-10-22', title:'전투 결과', text:'공격과 생명, 골드가 누구에게 갔는지, 현재 칸, 속성 일치를 보여 줍니다. 받은 카드는 뒤집혀 나옵니다.'},
   {date:'2026-10-22', title:'업적', text:'첫 패배 핫팩, 3패 재료, 5패 카드 3장, 10패 핫팩. 캠페인에서 받습니다.'},
