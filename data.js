@@ -1,5 +1,13 @@
 // All cards in this prototype are original placeholders, not extracted from any commercial game.
 export const VERSION = '0.1.0';
+export const UPDATES = [
+  {date:'2026-10-22', title:'자동 업데이트', text:'새 판이 올라오면 페이지가 스스로 다시 불러옵니다.'},
+  {date:'2026-10-22', title:'주문·공격·퇴각', text:'주문 결과, 공격 성공과 막힘, 퇴각 통행료가 보드 위에 뜹니다.'},
+  {date:'2026-10-22', title:'전투 결과', text:'공격과 생명, 골드가 누구에게 갔는지, 현재 칸, 속성 일치를 보여 줍니다. 받은 카드는 뒤집혀 나옵니다.'},
+  {date:'2026-10-22', title:'업적', text:'첫 패배 핫팩, 3패 재료, 5패 카드 3장, 10패 핫팩. 캠페인에서 받습니다.'},
+  {date:'2026-10-22', title:'패배 보상', text:'져도 그 스테이지 커먼 2장과 재료 8. 항복은 없습니다.'},
+  {date:'2026-10-22', title:'4장부터 6장', text:'보드가 커지고 모양이 달라집니다. 각 장의 이야기가 있습니다.'}
+];
 export const DECK_SIZE = 40;
 export const COPY_LIMIT = 4;
 export const RARITIES = ['C', 'U', 'R', 'E', 'L'];
