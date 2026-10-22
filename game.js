@@ -1,10 +1,11 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, RING, TILE_ELEMENTS, DECK_SIZE, COPY_LIMIT, STARTER_DECK, RARITIES, RARITY_WEIGHTS, DUST_GAIN, DUST_COST, DAILY_PACKS} from './data.js';
+import {VERSION, CARDS, CARD_LIST, STAGES, RING, TILE_ELEMENTS, DECK_SIZE, COPY_LIMIT, STARTER_DECK, RARITIES, RARITY_WEIGHTS, DUST_GAIN, DUST_COST, DAILY_PACKS, STORY} from './data.js';
 
 export function newSave(seed = Date.now()) {
   const collection = {};
   STARTER_DECK.forEach(id => collection[id] = (collection[id]||0)+1);
   return {version:VERSION, seed:seed>>>0, collection, deck:[...STARTER_DECK], dust:0, tickets:0,
     progress:{highestUnlocked:1,cleared:[],wins:{},lastDailyWin:{}},match:null,lastReward:null,
+    story:{prologue:false, intro:{}, outro:{}},
     log:['프로젝트 알파 0.1 — 캠페인 1 스테이지 개방.']};
 }
 function ensure(ok, message) { if (!ok) throw new Error(message); }
@@ -46,6 +47,8 @@ export function startMatch(s,stageId,difficulty='normal') {
     tiles:TILE_ELEMENTS.map((element,i)=>({index:i,element,owner:null,cardId:null,level:0}))};
   for(const p of s.match.players)refill(s,p);
   log(s,`[대전] ${stage.name} · ${difficulty==='hard'?'어려움':'일반'} 시작`);
+  const hook=STORY.stages[stageId]?.intro?.hook;
+  if(hook) log(s,`[${stage.enemy}] ${hook}`);
   grantSalary(s);
 }
 export function goldScore(m,id) {const p=m.players[id];return p.gold+m.tiles.filter(t=>t.owner===id).reduce((acc,t)=>acc+(70+CARDS[t.cardId].cost+t.level*85),0);}
@@ -298,5 +301,9 @@ export function loadSave(raw){const s=typeof raw==='string'?JSON.parse(raw):raw;
   s.deck=[...STARTER_DECK];
   s.log.unshift('[이전] 덱 제한이 40장이 되어 시작 덱으로 맞췄습니다. 모아 둔 카드는 남습니다.');
  }
- s.match=null;s.lastReward=null;return s;
+ s.match=null;s.lastReward=null;
+ if(!s.story||typeof s.story!=='object') s.story={prologue:false, intro:{}, outro:{}};
+ if(!s.story.intro||typeof s.story.intro!=='object') s.story.intro={};
+ if(!s.story.outro||typeof s.story.outro!=='object') s.story.outro={};
+ return s;
 }
