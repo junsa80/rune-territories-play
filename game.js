@@ -1,9 +1,9 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, DECK_SIZE, COPY_LIMIT, STARTER_DECK, RARITIES, RARITY_WEIGHTS, DUST_GAIN, DUST_COST, DAILY_PACKS, STAGE_PACKS, HOT_PACK, ACHIEVEMENTS, STORY, makeBoard} from './data.js';
+import {VERSION, CARDS, CARD_LIST, STAGES, DECK_SIZE, COPY_LIMIT, STARTER_DECK, RARITIES, RARITY_WEIGHTS, DUST_GAIN, DUST_COST, DAILY_PACKS, STAGE_PACKS, HOT_PACK, ACHIEVEMENTS, STORY, makeBoard} from './data.js?v=0.1.42';
 
 export function newSave(seed = Date.now()) {
   const collection = {};
   STARTER_DECK.forEach(id => collection[id] = (collection[id]||0)+1);
-  return {version:VERSION, seed:seed>>>0, collection, deck:[...STARTER_DECK], dust:0, tickets:0,
+  return {version:VERSION, seed:seed>>>0, collection, deckSize:DECK_SIZE, deckSlots:[], deck:[...STARTER_DECK], dust:0, tickets:0,
     progress:{highestUnlocked:1,cleared:[],wins:{},lastDailyWin:{}},match:null,lastReward:null,
     story:{prologue:false, intro:{}, outro:{}, done:{}},
     achievements:{},
@@ -31,6 +31,18 @@ export function editDeck(s,id,delta) {
   const count=s.deck.filter(x=>x===id).length;
   if(delta>0){ensure(s.deck.length<DECK_SIZE,'덱이 가득 찼습니다.');ensure(count<(s.collection[id]||0),'카드 보유 수량 초과');ensure(count<COPY_LIMIT,'같은 카드 최대 4장');s.deck.push(id);}
   else {ensure(count>0,'덱에 없는 카드');s.deck.splice(s.deck.indexOf(id),1);}
+}
+export function storeDeck(s,index,name){
+ ensure(!s.match,'대전 중에는 덱을 보관할 수 없습니다.');validateDeck(s);
+ ensure(Number.isInteger(index)&&index>=0&&index<8,'덱 슬롯 오류');
+ const title=String(name||'').trim().slice(0,24);ensure(title.length>0,'덱 이름을 입력하세요.');
+ if(!Array.isArray(s.deckSlots))s.deckSlots=[];
+ s.deckSlots[index]={name:title,deck:[...s.deck]};
+}
+export function restoreDeck(s,index){
+ ensure(!s.match,'대전 중에는 덱을 교체할 수 없습니다.');
+ const slot=Number.isInteger(index)&&index>=0&&index<8?s.deckSlots?.[index]:null;ensure(slot&&Array.isArray(slot.deck),'빈 덱 슬롯입니다.');
+ validateDeck({...s,deck:slot.deck});s.deck=[...slot.deck];
 }
 function draw(s,p) {
   if(!p.deck.length && p.discard.length) {p.deck=shuffle(s,p.discard);p.discard=[];}
@@ -226,6 +238,7 @@ function completeTurn(s){const m=s.match,p=m.players[m.current];refill(s,p);p.sp
  m.current=1-m.current;m.phase='prep';grantSalary(s);
 }
 export function availableItem(s){const m=s.match,p=m.players[m.current];return p.hand.filter(id=>CARDS[id].kind==='item');}
+function discountValue(p,c){const unitCost=Math.max(0,...p.hand.filter(id=>CARDS[id]?.kind==='unit').map(id=>CARDS[id].cost));return Math.min(c.power,Math.max(0,unitCost-(p.placeCut||0)))-c.cost;}
 function bestSpell(s){
   const m=s.match,p=m.players[m.current],foe=m.players[1-m.current];
   let best=null,bestScore=24;
@@ -236,7 +249,7 @@ function bestSpell(s){
     else if(c.effect==='drain') score=Math.min(c.power,foe.gold)-c.cost-(p.gold<70?40:0);
     else if(c.effect==='wage'){const lands=ownerLands(m,p.id).length;score=(lands>=3?c.power:c.power2)-c.cost;}
     else if(c.effect==='levelPay'){const levels=ownerLands(m,p.id).reduce((a,t)=>a+t.level,0);score=levels*c.power-c.cost;}
-    else if(c.effect==='placeCut') score=Math.min(c.power,28)-c.cost;
+    else if(c.effect==='placeCut') score=discountValue(p,c);
     if(score>bestScore){bestScore=score;best=id;}
   }
   return best;
@@ -253,7 +266,7 @@ function sideSpell(s,who){
     else if(c.effect==='drain') score=Math.min(c.power,foe.gold)-c.cost-(p.gold<70?40:0);
     else if(c.effect==='wage'){const lands=ownerLands(m,who).length;score=(lands>=3?c.power:c.power2)-c.cost;}
     else if(c.effect==='levelPay'){const levels=ownerLands(m,who).reduce((a,t)=>a+t.level,0);score=levels*c.power-c.cost;}
-    else if(c.effect==='placeCut') score=Math.min(c.power,28)-c.cost;
+    else if(c.effect==='placeCut') score=discountValue(p,c);
     if(score>bestScore){bestScore=score;best=id;}
   }
   return best;
@@ -488,12 +501,27 @@ export function loadSave(raw){const s=typeof raw==='string'?JSON.parse(raw):raw;
  ensure(Number.isInteger(s.seed)&&s.seed>=0,'저장 시드 오류');ensure(Array.isArray(s.deck)&&s.collection&&s.progress&&Array.isArray(s.log),'저장 데이터 필수 항목 누락');
  ensure(s.deck.every(id=>!!CARDS[id]),'알 수 없는 카드');ensure(Object.entries(s.collection).every(([id,v])=>!!CARDS[id]&&Number.isInteger(v)&&v>=0&&v<=COPY_LIMIT),'카드 보유 수량 오류');
  ensure(Number.isSafeInteger(s.dust)&&s.dust>=0&&Number.isSafeInteger(s.tickets)&&s.tickets>=0,'재료/선택권 오류');
- if(s.deck.length!==DECK_SIZE){
+ if(s.deckSize==null&&s.deck.length===12){
   const need={}; for(const id of STARTER_DECK) need[id]=(need[id]||0)+1;
   for(const [id,n] of Object.entries(need)) s.collection[id]=Math.max(s.collection[id]||0,n);
   s.deck=[...STARTER_DECK];
   s.log.unshift('[이전] 덱 제한이 40장이 되어 시작 덱으로 맞췄습니다. 모아 둔 카드는 남습니다.');
  }
+ s.deckSize=DECK_SIZE;
+ if(!Array.isArray(s.deckSlots))s.deckSlots=[];
+ s.deckSlots=Array.from({length:Math.min(8,s.deckSlots.length)},(_,i)=>{
+  const slot=s.deckSlots[i];if(!slot||typeof slot.name!=='string'||!Array.isArray(slot.deck))return null;
+  try{validateDeck({...s,deck:slot.deck});return {name:slot.name.slice(0,24),deck:[...slot.deck]};}catch{return null;}
+ });
+ ensure(s.deck.length<=DECK_SIZE,'저장 덱 장수 오류');
+ const used={};
+ for(const id of s.deck){used[id]=(used[id]||0)+1;ensure(used[id]<=COPY_LIMIT&&used[id]<=(s.collection[id]||0),'저장 덱 보유 수량 오류');}
+ const p=s.progress, stageIds=STAGES.map(st=>st.id);
+ ensure(Number.isInteger(p.highestUnlocked)&&stageIds.includes(p.highestUnlocked)&&Array.isArray(p.cleared)&&p.cleared.every(id=>stageIds.includes(id)),'저장 캠페인 진행 오류');
+ for(const field of ['wins','lastDailyWin']) ensure(p[field]&&typeof p[field]==='object'&&!Array.isArray(p[field]),'저장 캠페인 기록 오류');
+ ensure(Object.values(p.wins).every(n=>Number.isSafeInteger(n)&&n>=0),'저장 승리 횟수 오류');
+ ensure(s.log.every(line=>typeof line==='string'),'저장 로그 오류');
+ s.log=s.log.slice(0,100);
  s.match=null;s.lastReward=null;
  if(!s.story||typeof s.story!=='object') s.story={prologue:false, intro:{}, outro:{}};
  if(!s.story.intro||typeof s.story.intro!=='object') s.story.intro={};
@@ -503,3 +531,4 @@ export function loadSave(raw){const s=typeof raw==='string'?JSON.parse(raw):raw;
  if(!Number.isInteger(s.losses)||s.losses<0) s.losses=s.achievements['first-loss']?1:0;
  return s;
 }
+

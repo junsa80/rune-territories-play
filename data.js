@@ -1,6 +1,10 @@
 // All cards in this prototype are original placeholders, not extracted from any commercial game.
 export const VERSION = '0.1.0';
+export const UI_BUILD = '0.1.42';
 export const UPDATES = [
+  {date:'2026-10-22', title:'카드 역할 점검', text:'모래시계 벌레는 무속성 수비형(생명 7), 왕관 재는 화염 침략형(공격 14·생명 6)으로 구분했습니다. 현재 전투식에서 효력이 없는 반격·침략 생존 설명을 정리했습니다.'},
+  {date:'2026-10-22', title:'덱 연구·한 장씩 개봉', text:'유닛 속성·주문·장비 수를 누르면 카드가 걸러집니다. 이름 붙인 덱 8개를 보관하고, 카드는 한 장씩 공개합니다. 보드에 이동 방향과 상세 보기를 넣었습니다.'},
+  {date:'2026-10-22', title:'저장·조작 안정화', text:'편집 중인 덱도 새로고침과 JSON 백업으로 보존합니다. 손패를 골라도 가로 스크롤 위치를 유지하며, 연출 중 중복 저장을 줄였습니다.'},
   {date:'2026-10-22', title:'첫 판', text:'못 뚫는 땅은 통행료를 내고 지나가는 버튼이 앞에 옵니다. 1장 상대는 빈 칸을 덜 집어 갑니다.'},
   {date:'2026-10-22', title:'주문·공격·퇴각', text:'주문 결과, 공격 성공과 막힘, 퇴각 통행료가 보드 위에 뜹니다.'},
   {date:'2026-10-22', title:'전투 결과', text:'공격과 생명, 골드가 누구에게 갔는지, 현재 칸, 속성 일치를 보여 줍니다. 받은 카드는 뒤집혀 나옵니다.'},
@@ -15,15 +19,15 @@ export const RARITY_NAMES = {C:'커먼',U:'언커먼',R:'레어',E:'엑소틱',L
 export const ELEMENTS = {neutral:'무속성',fire:'화염',water:'물',earth:'대지',air:'바람'};
 export const TRAITS = {
   'root-bind': {name:'뿌리 결속', text:'양옆 대지 아군마다 수비 생명 +레벨.'},
-  'cloud-step': {name:'구름걸음', text:'바람 칸에서 공격 +1, 반격 +레벨.'},
+  'cloud-step': {name:'구름걸음', text:'바람 칸 침략 공격 +1.'},
   'gate-crack': {name:'관문 균열', text:'침략 공격 +3. 수비 생명 +레벨.'},
-  'rain-veil': {name:'비장막', text:'물 칸에서 수비 생명 +2×레벨. 침략 생존 +2.'},
-  'twin-oath': {name:'쌍문장', text:'양옆 아군마다 수비 생명 +레벨, 반격 +1.'},
-  'double-vow': {name:'이중 맹세', text:'침략 공격 +2, 생존 +2. 수비 생명 +2×레벨.'},
+  'rain-veil': {name:'비장막', text:'물 칸 수비 생명 +2×레벨.'},
+  'twin-oath': {name:'쌍문장', text:'양옆 아군마다 수비 생명 +레벨.'},
+  'double-vow': {name:'이중 맹세', text:'침략 공격 +2. 수비 생명 +2×레벨.'},
   'forest-wall': {name:'숲의 벽', text:'수비 생명 +2×레벨. 대지 이웃이 있으면 통행료 +12×레벨.'},
-  'storm-call': {name:'폭풍 부름', text:'바람 칸 공격 +3, 반격 +2×레벨. 바람 침략 성공 시 Lv.2.'},
-  'magma': {name:'용암 세력', text:'화염 칸 공격 +3, 수비 생명 +레벨, 반격 +2×레벨.'},
-  'star-scale': {name:'별비늘', text:'침략 공격 +4. 화염 칸이면 수비 생명·반격 +2×레벨, 아니면 생명 +레벨.'},
+  'storm-call': {name:'폭풍 부름', text:'바람 칸 침략 공격 +3. 바람 침략 성공 시 Lv.2.'},
+  'magma': {name:'용암 세력', text:'화염 칸 침략 공격 +3, 수비 생명 +레벨.'},
+  'star-scale': {name:'별비늘', text:'침략 공격 +4. 화염 칸 수비 생명 +2×레벨, 그 외 수비 생명 +레벨.'},
   'tide-read': {name:'조수 예언', text:'물 칸 수비 생명 +2×레벨, 통행료 +8×레벨. 양옆 물 아군 생명 +레벨.'},
   'world-root': {name:'세계 뿌리', text:'수비 생명 +레벨, 통행료 +4×레벨. 양옆 아군 통행료 +8×이 레벨.'},
   'bastion-hold': {name:'성채 고정', text:'수비 생명 +레벨. 침략 보너스는 없다.'},
@@ -42,24 +46,24 @@ export const CARD_LIST = [
   {id:'moss-turtle',name:'이끼거북',kind:'unit',element:'earth',rarity:'C',stage:1,cost:32,atk:2,hp:7,grow:6,desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
   {id:'trail-supplies',name:'여행 보급',kind:'spell',element:'neutral',rarity:'U',stage:1,cost:12,effect:'gainGold',power:55,desc:'한 턴에 1장. 이동 전 또는 전투 지원. 무조건 55G.'},
   {id:'three-lands',name:'세 땅의 주머니',kind:'spell',element:'neutral',rarity:'U',stage:1,cost:12,effect:'wage',power:70,power2:30,desc:'같은 가격. 아군 영토 3개 이상이면 70G, 아니면 30G. 전투 지원으로 내면 확정 뒤에 공개.'},
-  {id:'steel-blade',name:'강철 칼날',kind:'item',element:'neutral',rarity:'U',stage:1,cost:15,power:4,bonus:'atk',desc:'전투 지원. 공격이면 공격 +4, 막으면 반격 +4.'},
-  {id:'stone-shield',name:'석벽 방패',kind:'item',element:'neutral',rarity:'U',stage:1,cost:15,power:4,bonus:'def',desc:'같은 가격. 공격이면 생존 +4, 막으면 생명 +4.'},
-  {id:'element-point',name:'속성 칼끝',kind:'item',element:'neutral',rarity:'U',stage:1,cost:15,power:6,bonus:'elem-atk',desc:'같은 가격. 속성이 맞으면 +6, 아니면 +1. 공격은 공격력, 수비는 반격.'},
-  {id:'tiny-charm',name:'작은 부적',kind:'item',element:'neutral',rarity:'C',stage:1,cost:8,power:2,bonus:'atk',desc:'싼 장비. 공격이면 공격 +2, 막으면 반격 +2.'},
-  {id:'thin-hide',name:'얇은 가죽',kind:'item',element:'neutral',rarity:'C',stage:1,cost:8,power:2,bonus:'def',desc:'같은 가격. 공격이면 생존 +2, 막으면 생명 +2.'},
+  {id:'steel-blade',name:'강철 칼날',kind:'item',element:'neutral',rarity:'U',stage:1,cost:15,power:4,bonus:'atk',desc:'침략용 지원. 공격 +4. 수비에는 효과가 없다.'},
+  {id:'stone-shield',name:'석벽 방패',kind:'item',element:'neutral',rarity:'U',stage:1,cost:15,power:4,bonus:'def',desc:'수비용 지원. 수비 생명 +4. 침략에는 효과가 없다.'},
+  {id:'element-point',name:'속성 칼끝',kind:'item',element:'neutral',rarity:'U',stage:1,cost:15,power:6,bonus:'elem-atk',desc:'침략용 지원. 공격 유닛과 땅 속성이 맞으면 공격 +6, 아니면 +1.'},
+  {id:'tiny-charm',name:'작은 부적',kind:'item',element:'neutral',rarity:'C',stage:1,cost:8,power:2,bonus:'atk',desc:'침략용 지원. 공격 +2. 강철 칼날보다 저렴하다.'},
+  {id:'thin-hide',name:'얇은 가죽',kind:'item',element:'neutral',rarity:'C',stage:1,cost:8,power:2,bonus:'def',desc:'수비용 지원. 수비 생명 +2. 석벽 방패보다 저렴하다.'},
   {id:'gate-breaker',name:'관문 파괴자',kind:'unit',element:'neutral',rarity:'R',stage:1,cost:48,atk:8,hp:5,grow:3,trait:'gate-crack',desc:'공격 역할이며, 무속성이라 땅 보너스는 없다.'},
   {id:'rain-sage',name:'비의 현자',kind:'unit',element:'water',rarity:'R',stage:1,cost:46,atk:6,hp:7,grow:6,trait:'rain-veil',desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
   {id:'forest-warden',name:'숲 감시자',kind:'unit',element:'earth',rarity:'E',stage:1,cost:62,atk:7,hp:10,grow:6,trait:'forest-wall',desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
   {id:'star-drake',name:'별비늘 용',kind:'unit',element:'fire',rarity:'L',stage:1,cost:85,atk:11,hp:8,grow:2,trait:'star-scale',desc:'공격 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
   {id:'mist-runner',name:'안개 사냥꾼',kind:'unit',element:'water',rarity:'C',stage:2,cost:34,atk:5,hp:5,grow:2,desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
-  {id:'sand-clock',name:'모래시계 벌레',kind:'unit',element:'neutral',rarity:'C',stage:2,cost:34,atk:3,hp:5,grow:6,desc:'수비 역할이며, 무속성이라 땅 보너스는 없다.'},
+  {id:'sand-clock',name:'모래시계 벌레',kind:'unit',element:'neutral',rarity:'C',stage:2,cost:34,atk:3,hp:7,grow:6,desc:'길잡이보다 9G 비싸고 생명이 2 높다. 무속성 수비형.'},
   {id:'root-speaker',name:'뿌리술사',kind:'unit',element:'earth',rarity:'U',stage:2,cost:42,atk:4,hp:9,grow:4,trait:'root-bind',desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
   {id:'bastion-moss',name:'성채 이끼',kind:'unit',element:'earth',rarity:'U',stage:2,cost:42,atk:3,hp:8,grow:6,trait:'bastion-hold',desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
   {id:'searing-blast',name:'작열의 거래',kind:'spell',element:'fire',rarity:'U',stage:2,cost:20,effect:'drain',power:45,desc:'한 턴에 1장. 이동 전 또는 전투 지원. 상대 현금에서 최대 45G 소멸.'},
-  {id:'ash-contract',name:'재의 계약',kind:'spell',element:'neutral',rarity:'U',stage:2,cost:20,effect:'placeCut',power:25,desc:'같은 가격. 이번 배치를 25G 깎는다. 전투 지원으로 내면 확정 뒤에 공개.'},
+  {id:'ash-contract',name:'재의 계약',kind:'spell',element:'neutral',rarity:'U',stage:2,cost:20,effect:'placeCut',power:100,desc:'다음 유닛 배치 비용을 최대 100G 할인. 비싼 유닛용 준비 주문. 싼 유닛에 쓰면 할인도 작다. 침략 비용에는 적용되지 않는다.'},
   {id:'twin-crest',name:'쌍문장 기사',kind:'unit',element:'neutral',rarity:'R',stage:2,cost:52,atk:7,hp:8,grow:4,trait:'twin-oath',desc:'수비 역할이며, 무속성이라 땅 보너스는 없다.'},
-  {id:'arc-bow',name:'아크 활',kind:'item',element:'neutral',rarity:'R',stage:2,cost:24,power:7,bonus:'atk',desc:'전투 지원. 공격이면 공격 +7, 막으면 반격 +7.'},
-  {id:'matched-shield',name:'맞방패',kind:'item',element:'neutral',rarity:'R',stage:2,cost:24,power:7,bonus:'def',desc:'아크 활과 같은 가격. 공격이면 생존 +7, 막으면 생명 +7.'},
+  {id:'arc-bow',name:'아크 활',kind:'item',element:'neutral',rarity:'R',stage:2,cost:24,power:7,bonus:'atk',desc:'침략용 지원. 공격 +7. 수비에는 효과가 없다.'},
+  {id:'matched-shield',name:'맞방패',kind:'item',element:'neutral',rarity:'R',stage:2,cost:24,power:7,bonus:'def',desc:'수비용 지원. 수비 생명 +7. 침략에는 효과가 없다.'},
   {id:'invest-golem',name:'축성 골렘',kind:'unit',element:'neutral',rarity:'U',stage:2,cost:40,atk:4,hp:4,grow:6,trait:'slow-invest',desc:'수비 역할이며, 무속성이라 땅 보너스는 없다.'},
   {id:'tempest-giant',name:'폭풍 거인',kind:'unit',element:'air',rarity:'E',stage:2,cost:72,atk:9,hp:11,grow:3,trait:'storm-call',desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
   {id:'tidal-oracle',name:'조수의 예언자',kind:'unit',element:'water',rarity:'L',stage:2,cost:95,atk:9,hp:14,grow:6,trait:'tide-read',desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
@@ -68,7 +72,7 @@ export const CARD_LIST = [
   {id:'golden-path',name:'황금길',kind:'spell',element:'neutral',rarity:'U',stage:3,cost:18,effect:'gainGold',power:85,desc:'한 턴에 1장. 이동 전 또는 전투 지원. 무조건 85G.'},
   {id:'level-tithe',name:'레벨 징수',kind:'spell',element:'neutral',rarity:'U',stage:3,cost:18,effect:'levelPay',power:16,desc:'같은 가격. 아군 영토 레벨 합 ×16G. 땅을 안 키우면 황금길보다 못하다.'},
   {id:'double-oath',name:'이중 맹세자',kind:'unit',element:'neutral',rarity:'R',stage:3,cost:58,atk:8,hp:9,grow:4,trait:'double-vow',desc:'수비 역할이며, 무속성이라 땅 보너스는 없다.'},
-  {id:'mirror-armor',name:'거울 갑옷',kind:'item',element:'neutral',rarity:'R',stage:3,cost:28,power:9,bonus:'def',desc:'맞방패보다 4G 비싸다. 공격이면 생존 +9, 막으면 생명 +9.'},
+  {id:'mirror-armor',name:'거울 갑옷',kind:'item',element:'neutral',rarity:'R',stage:3,cost:28,power:9,bonus:'def',desc:'수비용 지원. 수비 생명 +9. 맞방패보다 4G 비싸다.'},
   {id:'volcanic-lord',name:'화산의 군주',kind:'unit',element:'fire',rarity:'E',stage:3,cost:80,atk:10,hp:9,grow:3,trait:'magma',desc:'공격 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
   {id:'world-tree',name:'세계나무의 수호자',kind:'unit',element:'earth',rarity:'L',stage:3,cost:105,atk:10,hp:16,grow:6,trait:'world-root',desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
   {id:'quay-spark',name:'부두 불씨',kind:'unit',element:'fire',rarity:'C',stage:4,cost:36,atk:5,hp:4,grow:2,desc:'공격 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
@@ -84,7 +88,7 @@ export const CARD_LIST = [
   {id:'spire-mole',name:'첨탑 두더지',kind:'unit',element:'earth',rarity:'C',stage:6,cost:37,atk:3,hp:6,grow:6,desc:'싼 대지. 이끼거북보다 공격이 높고 생명은 낮다.'},
   {id:'gulf-moth',name:'만의 나방',kind:'unit',element:'air',rarity:'R',stage:6,cost:56,atk:7,hp:7,grow:3,trait:'cloud-step',desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
   {id:'payroll-crab',name:'급여 게',kind:'unit',element:'water',rarity:'E',stage:6,cost:88,atk:7,hp:12,grow:4,trait:'tide-read',desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
-  {id:'crown-ash',name:'왕관 재',kind:'unit',element:'fire',rarity:'E',stage:6,cost:88,atk:12,hp:7,grow:2,trait:'magma',desc:'별비늘 용보다 3G 비싸다. 공격은 1 높고 생명은 1 낮다.'},
+  {id:'crown-ash',name:'왕관 재',kind:'unit',element:'fire',rarity:'E',stage:6,cost:88,atk:14,hp:6,grow:2,trait:'magma',desc:'화염 칸 침략 공격 17. 별비늘 용보다 강하게 치지만 수비 생명이 낮다.'},
   {id:'contract-titan',name:'계약 거인',kind:'unit',element:'neutral',rarity:'L',stage:6,cost:120,atk:10,hp:16,grow:4,trait:'double-vow',desc:'수비 역할이며, 무속성이라 땅 보너스는 없다.'}
 ];
 export const CARDS = Object.fromEntries(CARD_LIST.map(c=>[c.id,c]));
@@ -97,6 +101,14 @@ export const STAGES = [
   {id:5,name:'이름 없는 칸',enemy:'측량사 린',style:'balanced',target:3200,maxRounds:26,board:{w:9,h:5},focus:'가로로 긴 24칸',keyCard:'flare-mason',enemyDeck:[...n('flare-mason',4),...n('measure-heron',4),...n('notch-boar',4),...n('lane-wisp',4),...n('seal-knight',2),...n('reed-lancer',4),...n('cinder-squire',4),...n('arc-bow',4),...n('cloud-stag',4),...n('spark-scout',4),...n('golden-path',2)]},
   {id:6,name:'마지막 고용',enemy:'고용주 세르',style:'aggressive',target:3800,maxRounds:28,board:{w:9,h:7},focus:'큰 직사각형 28칸',keyCard:'contract-titan',enemyDeck:[...n('contract-titan',2),...n('crown-ash',4),...n('payroll-crab',4),...n('gulf-moth',4),...n('spire-mole',4),...n('world-tree',1),...n('volcanic-lord',2),...n('tempest-giant',2),...n('double-oath',2),...n('tidal-oracle',1),...n('mirror-armor',2),...n('level-tithe',2),...n('star-drake',1),...n('forest-warden',2),...n('gate-breaker',2),...n('twin-crest',2),...n('arc-bow',3)]}
 ];
+export const HARD_HINTS = {
+  1:{threat:'상대는 시작 골드와 매턴 수입이 더 많습니다.',goal:'저렴한 유닛으로 빈 땅을 먼저 확보하고, 여행 보급 같은 수입 주문으로 투자를 이어가세요.',tools:'저비용 유닛 · 수입 주문 · 석벽 방패'},
+  2:{threat:'대지 유닛이 이웃과 연결되면 수비 생명이 높아집니다.',goal:'무리한 침략을 줄이고, 높은 공격 유닛에 공격 장비를 더해 수비 생명을 넘겨 보세요.',tools:'관문 파괴자 · 강철 칼날 · 높은 공격력'},
+  3:{threat:'상대는 공격 유닛과 아크 활로 영토를 빼앗으려 합니다.',goal:'중요한 땅은 수비 생명 장비로 지키고, 상대가 약하게 지킨 칸을 공격 장비로 노리세요.',tools:'맞방패 · 아크 활 · 수비 생명이 높은 유닛'},
+  4:{threat:'성채 이끼와 뿌리술사, 방패를 섞은 수비형 덱입니다.',goal:'상대 지원이 공개되기 전에는 성공을 확신하지 마세요. 침략 자금과 내 영토 점수도 함께 준비하세요.',tools:'공격 장비 · 수입 주문 · 영토 강화'},
+  5:{threat:'속성이 다른 여러 유닛과 공격 장비를 사용합니다.',goal:'내 유닛과 땅의 속성을 맞추고, 상대 유닛의 수비 생명을 확인해 공격할 칸을 고르세요.',tools:'속성이 맞는 수비 유닛 · 공격 장비 · 유연한 무속성 유닛'},
+  6:{threat:'비싼 특성 유닛과 높은 공격 지원을 함께 사용합니다.',goal:'골드를 침략에 모두 쓰지 말고, 중요한 영토를 지킬 방패와 다음 턴 배치 자금을 남기세요.',tools:'황금길 같은 수입 주문 · 거울 갑옷 · 높은 수비 생명'}
+};
 export const DUST_GAIN = {C:2,U:6,R:25,E:70,L:160};
 export const DUST_COST = {C:12,U:45,R:190,E:500,L:1300};
 export const DAILY_PACKS = {normal:1,hard:2};
@@ -233,3 +245,4 @@ export const STORY={
     }
   }
 };
+
