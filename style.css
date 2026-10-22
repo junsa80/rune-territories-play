@@ -284,3 +284,12 @@ body.ingame .hand .card-title b{display:inline;white-space:normal;word-break:kee
 .trio-board .tile-pawns{gap:0;flex-wrap:nowrap}
 .trio-board .tile-pawns .pawn.sp-pawn+.pawn.sp-pawn{margin-left:-6px}
 .tile.owner-2{border-color:#b9e27a;background-image:linear-gradient(#3d5a2255,#3d5a2255)}
+/* 4인 시범: fourth side */
+.tile.owner-3{border:2px solid #d6a8ff;border-color:#d6a8ff;background-image:linear-gradient(#4a2f6655,#4a2f6655)}
+.pawn.sp-pawn.ai3{filter:drop-shadow(0 0 1px #d6a8ff) drop-shadow(0 0 1px #000)}
+.score-ai3,.legend-ai3{color:#dcb8ff}
+.trio-board.p4 .pawn.sp-pawn{width:18px}.trio-board.p4 .pawn.sp-pawn.active,.trio-board.p4 .pawn.sp-pawn.hop{width:24px}
+.trio-board.p4 .tile-pawns .pawn.sp-pawn+.pawn.sp-pawn{margin-left:-8px}
+.trio-board.p4 .board-center .trio-score{font-size:12px;line-height:1.1}
+@media(max-width:720px){.map-legend.legend-p4{font-size:9px;gap:4px 6px;line-height:1.2;margin-top:2px}}
+.prompt .trial-reward{color:#ffe09a;font-weight:600}

@@ -1,4 +1,4 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, TRIO_STAGE, DECK_SIZE, COPY_LIMIT, STARTER_DECK, RARITIES, RARITY_WEIGHTS, DUST_GAIN, DUST_COST, DAILY_PACKS, STAGE_PACKS, HOT_PACK, ACHIEVEMENTS, STORY, makeBoard} from './data.js?v=0.1.44';
+import {VERSION, CARDS, CARD_LIST, STAGES, TRIO_STAGE, TRIALS, DECK_SIZE, COPY_LIMIT, STARTER_DECK, RARITIES, RARITY_WEIGHTS, DUST_GAIN, DUST_COST, DAILY_PACKS, STAGE_PACKS, HOT_PACK, ACHIEVEMENTS, STORY, makeBoard, trialReward} from './data.js?v=0.1.45';
 
 export function newSave(seed = Date.now()) {
   const collection = {};
@@ -24,7 +24,7 @@ function foeOf(m,who){if(m.players.length===2)return 1-who;let best=-1,score=-In
 /** Highest total assets; ties go to the lower id (1:1: a>=b?0:1). */
 function leaderOf(m){let best=0;for(const p of m.players)if(goldScore(m,p.id)>goldScore(m,best))best=p.id;return best;}
 export function currentStage(s) {return stageById(s.match?.stageId);}
-export function stageById(id){return STAGES.find(x=>x.id===id)||(id===TRIO_STAGE.id?TRIO_STAGE:undefined);}
+export function stageById(id){return STAGES.find(x=>x.id===id)||TRIALS.find(x=>x.id===id);}
 export function validateDeck(s) {
   ensure(s.deck.length===DECK_SIZE,`덱은 ${DECK_SIZE}장이어야 합니다.`);
   const used={}; for(const id of s.deck) {ensure(!!CARDS[id],`알 수 없는 카드: ${id}`);used[id]=(used[id]||0)+1;ensure(used[id]<=COPY_LIMIT, '동일 카드 4장 제한');ensure(used[id]<=(s.collection[id]||0),'소유 수량 초과');}
@@ -58,8 +58,8 @@ function removeHand(p,id) {const i=p.hand.indexOf(id);ensure(i>=0,'손패에 없
 export function startMatch(s,stageId,difficulty='normal') {
   ensure(!s.match,'진행 중인 대전이 있습니다.');validateDeck(s);
   const stage=stageById(stageId);ensure(!!stage,'없는 스테이지');
-  const trio=stage===TRIO_STAGE;
-  if(trio) ensure(trioOpen(s)&&difficulty==='normal','3인 시범은 1장 클리어 뒤 일반으로만 열립니다.');
+  const trio=!!stage.trial;
+  if(trio) ensure(trialOpen(s,stage)&&difficulty==='normal',`${stage.name}은 아직 열리지 않았습니다.`);
   else ensure(stageId<=s.progress.highestUnlocked,'아직 개방되지 않은 스테이지');
   ensure(['normal','hard'].includes(difficulty),'지원하지 않는 난이도');
   ensure(trio||difficulty!=='hard'||s.progress.cleared.includes(stageId),'어려움 난이도는 해당 스테이지 최초 클리어 후 개방됩니다.');
@@ -67,7 +67,7 @@ export function startMatch(s,stageId,difficulty='normal') {
   const board=makeBoard(stage.board.w,stage.board.h);
   const aiBonus=difficulty==='hard'?80:0;
   s.match={stageId,difficulty,round:1,phase:'prep',current:0,steps:0,turns:0,ended:false,w:board.w,h:board.h,corners:board.corners,
-    players:trio?[mkPlayer(0,s.deck,0),...stage.enemyDecks.map((d,i)=>mkPlayer(i+1,d,Math.round(board.ring.length*(i+1)/3)))]:[mkPlayer(0,s.deck,0),mkPlayer(1,stage.enemyDeck,board.aiStart,aiBonus)],
+    players:trio?[mkPlayer(0,s.deck,0),...stage.enemyDecks.map((d,i)=>mkPlayer(i+1,d,Math.round(board.ring.length*(i+1)/stage.players)))]:[mkPlayer(0,s.deck,0),mkPlayer(1,stage.enemyDeck,board.aiStart,aiBonus)],
     tiles:board.ring.map(([r,c],i)=>({index:i,r,c,element:board.elements[i],owner:null,cardId:null,level:0}))};
   for(const p of s.match.players)refill(s,p);
   log(s,`[대전] ${stage.name} · ${difficulty==='hard'?'어려움':'일반'} 시작`);
@@ -436,11 +436,17 @@ function repeatTicket(wins){
 }
 function finish(s,winner,reason){const m=s.match;ensure(m&&!m.ended,'이미 종료됨');m.ended=true;m.winner=winner;m.reason=reason;
  const scores=m.players.map(p=>goldScore(m,p.id));log(s,`[종료] ${winner===0?'승리':'패배'} · ${reason} · ${scores.join(' : ')}`);
- if(m.stageId===TRIO_STAGE.id){s.trio=s.trio||{played:0,wins:0};s.trio.played++;if(winner===0)s.trio.wins++;return;} // trial: no packs, no rewards
+ const trial=stageById(m.stageId);if(trial?.trial){const k=trial.record;s[k]=s[k]||{played:0,wins:0};s[k].played++;if(winner===0)s[k].wins++;awardTrial(s,trial,winner===0);return;}
  if(winner===0){const now=new Date();const day=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
    awardWin(s,m.stageId,m.difficulty,day);
  } else awardLoss(s,m.stageId);
 }
+// 시범 전용 보상: TRIAL_REWARD_BASE 비율 × 측정 분. 1:1 보상표·패배 횟수 업적과 분리.
+function awardTrial(s,st,won){const rw=trialReward(st.minutes);const ps=s.progress.cleared.includes(st.packStage)?st.packStage:1;
+ if(won){const pulled=[];for(let i=0;i<rw.winPacks;i++)pulled.push(...generatePack(s,ps));grantAchievement(s,st.achievement);
+  s.lastReward={stageId:st.id,trial:st.name,packs:rw.winPacks,pulled,dust:s.dust};log(s,`[보상] ${st.name} 승리: ${ps}장 카드팩 ${rw.winPacks}개`);return;}
+ const pool=CARD_LIST.filter(c=>c.stage===ps&&c.rarity==='C');const pulled=[];for(let i=0;i<rw.lossCommons;i++)pulled.push(acquire(s,pool[randInt(s,0,pool.length-1)].id));
+ s.dust+=rw.lossDust;s.lastReward={stageId:st.id,trial:st.name,loss:true,dust:rw.lossDust,pulled};log(s,`[보상] ${st.name} 패배: ${ps}장 커먼 ${rw.lossCommons}장 · 재료 +${rw.lossDust}`);}
 function awardLoss(s,stageId){
  const pool=CARD_LIST.filter(c=>c.stage===stageId&&c.rarity==='C');
  const source=pool.length?pool:CARD_LIST.filter(c=>c.stage===stageId);
@@ -543,3 +549,5 @@ export function loadSave(raw){const s=typeof raw==='string'?JSON.parse(raw):raw;
 
 
 export function trioOpen(s){return !!s.progress?.cleared?.includes(1);}
+export function quadOpen(s){return (s.trio?.played||0)>=1||!!s.progress?.cleared?.includes(2);}
+export function trialOpen(s,st){return st.id===TRIO_STAGE.id?trioOpen(s):quadOpen(s);}

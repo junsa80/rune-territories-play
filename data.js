@@ -1,7 +1,8 @@
 // All cards in this prototype are original placeholders, not extracted from any commercial game.
 export const VERSION = '0.1.0';
-export const UI_BUILD = '0.1.44';
+export const UI_BUILD = '0.1.45';
 export const UPDATES = [
+  {date:'2026-10-22', title:'4인 시범', text:'3인 시범을 한 번 하거나 2장을 깨면 나·레오·미라·아르 넷이 24칸 고리를 도는 4인 시범이 열립니다. 52턴, 목표 5200점, 끝나면 자산이 가장 많은 사람이 이깁니다. 나와 상관없는 AI끼리의 턴은 이동 연출 없이 한 줄로 넘어가고, ▶▶ 빨리 넘기기는 이제 싸움만 보여 줍니다(3인 시범도 같이 빨라졌습니다). 두 시범 모두 보상이 생겼습니다: 1장 1:1 보상을 플레이 시간에 맞춰 늘린 값으로, 3인 시범 승리 카드팩 3개·패배 커먼 6장+재료 24, 4인 시범 승리 카드팩 4개·패배 커먼 9장+재료 35. 처음 이기면 업적 재료 +30(3인)·+40(4인). 항복은 보상 없음.'},
   {date:'2026-10-22', title:'3인 시범', text:'1장을 깨면 캠페인에서 나·레오·미라 셋이 20칸 고리를 도는 3인 시범을 할 수 있습니다. 36턴, 목표 3800점, 끝나면 자산이 가장 많은 사람이 이깁니다. 나와 상관없는 AI끼리의 일은 한 줄로 요약하고, ▶▶ 버튼으로 빨리 넘깁니다. 보상은 없습니다.'},
   {date:'2026-10-22', title:'둘째 권·그림·소리', text:'7~18장 이야기(읽기 전용, 6장 클리어 뒤 차례로 열림)와 둘째 권 카드 14장(6장 보상·제작 풀)을 넣었습니다. 말·주사위·효과 그림과 새 효과음, 이음매 없는 배경음을 씁니다. 소리 설정은 그대로입니다.'},
   {date:'2026-10-22', title:'카드 역할 점검', text:'모래시계 벌레는 무속성 수비형(생명 7), 왕관 재는 화염 침략형(공격 14·생명 6)으로 구분했습니다. 현재 전투식에서 효력이 없는 반격·침략 생존 설명을 정리했습니다.'},
@@ -119,8 +120,17 @@ export const STAGES = [
   {id:6,name:'마지막 고용',enemy:'고용주 세르',style:'aggressive',target:3800,maxRounds:28,board:{w:9,h:7},focus:'큰 직사각형 28칸',keyCard:'contract-titan',enemyDeck:[...n('contract-titan',2),...n('crown-ash',4),...n('payroll-crab',4),...n('gulf-moth',4),...n('spire-mole',4),...n('world-tree',1),...n('volcanic-lord',2),...n('tempest-giant',2),...n('double-oath',2),...n('tidal-oracle',1),...n('mirror-armor',2),...n('level-tithe',2),...n('star-drake',1),...n('forest-warden',2),...n('gate-breaker',2),...n('twin-crest',2),...n('arc-bow',3)]}
 ];
 // 3인 시범 (2026-10-22, GrokBot). 1:1 스테이지 목록과 목표 점수는 건드리지 않는 별도 설정. 보상 없음.
-export const TRIO_STAGE = {id:100,name:'3인 시범',enemy:'레오 · 미라',faces:['leo','mira'],style:'balanced',target:3800,maxRounds:36,board:{w:6,h:6},gentle:400,focus:'고리 20칸 · 셋이 한 고리',hook:'셋이 한 고리를 걷는다. 누가 먼저 무너지는지 보자.',
+export const TRIO_STAGE = {id:100,trial:true,players:3,record:'trio',minutes:10.0,achievement:'trio-clear',packStage:1,name:'3인 시범',enemy:'레오 · 미라',faces:['leo','mira'],names:['레오','미라'],style:'balanced',target:3800,maxRounds:36,board:{w:6,h:6},gentle:400,focus:'고리 20칸 · 셋이 한 고리',hook:'셋이 한 고리를 걷는다. 누가 먼저 무너지는지 보자.',
   get enemyDecks(){return [STAGES[0].enemyDeck,STAGES[1].enemyDeck];}};
+// 4인 시범 (2026-10-22, GrokBot). 3인 시범을 한 번 하거나 2장을 깨면 열림. 보상은 아래 TRIAL_REWARD_BASE. compress: 나와 무관한 AI 턴은 이동 연출 없이 한 줄.
+// 시범 보상 (2026-10-22, 사용자 결정). 1:1 보상표는 그대로 두고 시범 전용 항목을 따로 둔다.
+// 기준: 1장 1:1 보통(오늘 첫 승리 아님) 승리 = 카드팩 1개, 패배 = 커먼 2장 + 재료 8, 측정 중앙값 3.3분(생각 10초, 빨리 넘기기 끔).
+// 시범 보상 = 기준 ÷ 3.3분 × 그 모드 중앙값 분, 반올림. 항복은 보상 없음.
+export const TRIAL_REWARD_BASE = {minutes:3.3, winPacks:1, lossCommons:2, lossDust:8};
+export function trialReward(minutes){const k=minutes/TRIAL_REWARD_BASE.minutes;return {winPacks:Math.round(TRIAL_REWARD_BASE.winPacks*k),lossCommons:Math.round(TRIAL_REWARD_BASE.lossCommons*k),lossDust:Math.round(TRIAL_REWARD_BASE.lossDust*k)};}
+export const QUAD_STAGE = {id:101,trial:true,players:4,record:'quad',minutes:14.3,achievement:'quad-clear',packStage:2,compress:true,name:'4인 시범',enemy:'레오 · 미라 · 아르',faces:['leo','mira','ar'],names:['레오','미라','아르'],style:'balanced',target:5200,maxRounds:52,board:{w:7,h:7},gentle:400,focus:'고리 24칸 · 넷이 한 고리',hook:'넷이 한 고리를 걷는다. 길이 좁아진다.',
+  get enemyDecks(){return [STAGES[0].enemyDeck,STAGES[1].enemyDeck,STAGES[0].enemyDeck];}};
+export const TRIALS = [TRIO_STAGE, QUAD_STAGE];
 export const HARD_HINTS = {
   1:{threat:'상대는 시작 골드와 매턴 수입이 더 많습니다.',goal:'저렴한 유닛으로 빈 땅을 먼저 확보하고, 여행 보급 같은 수입 주문으로 투자를 이어가세요.',tools:'저비용 유닛 · 수입 주문 · 석벽 방패'},
   2:{threat:'대지 유닛이 이웃과 연결되면 수비 생명이 높아집니다.',goal:'무리한 침략을 줄이고, 높은 공격 유닛에 공격 장비를 더해 수비 생명을 넘겨 보세요.',tools:'관문 파괴자 · 강철 칼날 · 높은 공격력'},
@@ -146,6 +156,8 @@ export const ACHIEVEMENTS = [
   {id:'clear-4', name:'4장 클리어', reward:'dust', dust:10, text:'업적 보상으로 재료 +10.'},
   {id:'clear-5', name:'5장 클리어', reward:'dust', dust:10, text:'업적 보상으로 재료 +10.'},
   {id:'clear-6', name:'6장 클리어', reward:'dust', dust:10, text:'업적 보상으로 재료 +10.'},
+  {id:'trio-clear', name:'3인 시범 첫 승리', reward:'dust', dust:30, text:'3인 시범에서 처음 이기면 재료 +30 (한 번만).'},
+  {id:'quad-clear', name:'4인 시범 첫 승리', reward:'dust', dust:40, text:'4인 시범에서 처음 이기면 재료 +40 (한 번만).'},
   {id:'loss-3', name:'3패', reward:'dust', dust:40, text:'3번 이상 지면 재료 +40.'},
   {id:'loss-5', name:'5패', reward:'pack', floors:['U','C','C'], text:'5번 이상 지면 전체 카드에서 3장. 언커먼 이상 1장, 커먼 2장.'},
   {id:'loss-10', name:'10패', reward:'hotpack', text:'10번 이상 지면 핫팩 1개. 해금 전 카드 포함.'}
