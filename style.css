@@ -349,3 +349,30 @@ body.ingame .hand .card-title b{display:inline;white-space:normal;word-break:kee
 @media(max-width:720px){body.ingame .tile-top,body.ingame .tile-unit,body.ingame .tile-top b{font-size:10px}.sp-el{width:9px;height:9px}}
 @media(prefers-reduced-motion:reduce){.board-center::before,.tile.summoned,.tile.summoned *,.tile.captured,.battle-sheet .versus::after,.battle-sheet .versus>*{animation:none!important}}
 @media(max-width:720px){body.ingame .el-chip,body.ingame .route-hint{font-size:10px}body.ingame .el-chip{line-height:1.2}}
+/* ---- UI 0.1.49 rune-fit (GrokBot): 1:1, 3p and 4p in-game screens fit 390x844 without scrolling ---- */
+@media(max-width:720px){
+  body.ingame .topbar{padding:4px 8px;gap:3px}
+  body.ingame .navbtn{min-height:30px;padding:3px 4px}
+  body.ingame .game-area{margin-top:4px;padding:4px}
+  body.ingame .game-header{padding:2px 4px 4px}
+  body.ingame .goal{padding:5px 8px;line-height:1.3;margin-top:2px}
+  body.ingame .board{width:min(100%,74vw,420px)}
+  body.ingame .map-legend{margin-top:2px;line-height:1.2}
+  body.ingame .game-layout{gap:4px}
+  body.ingame .dock .prompt{padding:6px 8px}
+  body.ingame .prompt p{margin:2px 0;line-height:1.35}
+  body.ingame .choices{margin:4px 0 2px}
+  body.ingame .go{margin:0 0 4px}
+  body.ingame .go button{min-height:44px}
+  body.ingame .hand .card-art{height:44px}
+  body.ingame #app{padding-bottom:4px}
+}
+@media(max-width:720px){
+  body.ingame .game-layout{position:relative}
+  body.ingame .act-banner{position:absolute;left:50%;top:2px;transform:translateX(-50%);width:max-content;max-width:92%;z-index:8;margin:0;box-shadow:0 4px 14px #000b;background:#17283af2}
+}
+@media(max-width:720px){body.ingame .gold-note{margin:2px 0 0;padding:3px 8px;font-size:13px;line-height:1.3}}
+@media(max-width:720px){
+  body.ingame .game-area:has(.battle-prompt) .board-slot,body.ingame .game-area:has(.battle-prompt) .hand,body.ingame .game-area:has(.battle-prompt) .goal{display:none}
+}
+@media(max-width:720px){body.ingame .trio-board ~ .map-legend,body.ingame .map-legend,body.ingame .map-legend *{font-size:10px}body.ingame .board-slot:has(.p4) .map-legend span:nth-last-child(-n+2){display:none}}
