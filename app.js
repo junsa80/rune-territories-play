@@ -1,6 +1,6 @@
-import {VERSION, UI_BUILD, HARD_HINTS, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.42';
-import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf, neighborBonus, tileBonus, storeDeck, restoreDeck} from './game.js?v=0.1.42';
-import {unlockAudio, sfx, toggleMute, muted} from './audio.js?v=0.1.42';
+import {VERSION, UI_BUILD, HARD_HINTS, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.43';
+import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf, neighborBonus, tileBonus, storeDeck, restoreDeck} from './game.js?v=0.1.43';
+import {unlockAudio, sfx, toggleMute, muted} from './audio.js?v=0.1.43';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
 let save, recoveryRaw=null, storageAvailable=true, initialRaw=null, droppedMatch=false;
@@ -43,6 +43,24 @@ function typeLabel(c){return c.kind==='unit'?ELEMENTS[c.element]:c.kind==='spell
 function kind(c){return c.kind==='unit'?'유닛':c.kind==='spell'?'주문':'아이템';}
 function withTrait(c){const t=c.trait&&TRAITS[c.trait];return t?`${c.desc} 특성 ${t.name}: ${t.text}`:c.desc;}
 const STAGE_FACE={1:'leo',2:'mira',3:'ar',4:'noel',5:'lin',6:'ser'};
+// Sprites (art/sprites, generated originals). Rows of pawns.png follow PAWN_ROWS. @2x on dense screens.
+const PAWN_ROWS=['player','leo','mira','ar','noel','lin','ser','hael','on','ian'];
+const SP_SUF=(window.devicePixelRatio||1)>1.5?'@2x':'';
+const FX_KINDS=[['attack',6],['hit',6],['guard',6],['break',8],['capture',8],['levelup',8],['gold',6],['spell',6]];
+(function spriteCSS(){
+  const de=document.documentElement.style;
+  for(const n of ['pawns','dice','fx','elements']) de.setProperty('--sp-'+n,`url("${new URL(`./art/sprites/${n}${SP_SUF}.png`,document.baseURI).href}")`);
+  let css='',start=0;
+  for(const [k,n] of FX_KINDS){
+    let kf='';for(let i=0;i<n;i++){const f=start+i,c=f%8,r=Math.floor(f/8);kf+=`${(i/n*100).toFixed(2)}%{background-position:${(c/7*100).toFixed(3)}% ${(r/6*100).toFixed(3)}%}`;}
+    kf+=`100%{background-position:${((start+n-1)%8/7*100).toFixed(3)}% ${(Math.floor((start+n-1)/8)/6*100).toFixed(3)}%;opacity:0}`;
+    css+=`@keyframes fx-${k}{${kf}}.sp-fx.fx-${k}{animation:fx-${k} ${(n/12).toFixed(2)}s steps(1,end) forwards}`;start+=n;
+  }
+  const el=document.createElement('style');el.textContent=css;document.head.appendChild(el);
+})();
+function pawnSprite(face,cls,label){const row=Math.max(0,PAWN_ROWS.indexOf(face));return `<span class="pawn sp-pawn ${cls}" role="img" aria-label="${esc(label)}" style="--row:${(row/9*100).toFixed(3)}%"></span>`;}
+function fxSprite(kind){return kind?`<span class="sp-fx fx-${kind}" aria-hidden="true"></span>`:'';}
+function elementIcon(el){const i=['fire','water','earth','air','neutral','event'].indexOf(el);return i<0?'':`<span class="sp-el" aria-hidden="true" style="background-position:${(i/5*100).toFixed(2)}% 0"></span>`;}
 function cornerAt(m,index){return m?.corners?.find(c=>c.index===index)||null;}
 function cardSrc(id){return `./art/cards/${id}.png`;}
 function faceSrc(name){return `./art/chars/${name}.png`;}
@@ -107,12 +125,12 @@ function handAttrs(id){
   return ['inspect','view',false];
 }
 function shownPos(m,who){const n=m.tiles.length;if(fx&&fx.who===who) return (fx.from+fx.tick)%n; return m.players[who].pos;}
-function dieHTML(){if(!fx) return ''; return `<div class="die ${fx.rolling?'rolling':'landed'}" data-face="${fx.face}" aria-hidden="true"><b class="die-face">${fx.face}</b></div>`;}
+function dieHTML(){if(!fx) return '';const idx=5+fx.face,pos=`${(idx%8/7*100).toFixed(3)}% ${Math.floor(idx/8)*100}%`;return `<div class="die sp-die ${fx.rolling?'rolling':'landed'}" data-face="${fx.face}" aria-hidden="true" style="--face:${pos}"><b class="die-face">${fx.face}</b></div>`;}
 function board(m){let cells=[];const n=m.tiles.length,acting=fx?.who??m.current;const focus=fx?(fx.from+fx.tick)%n:m.players[m.current].pos;for(let i=0;i<n;i++){const t=m.tiles[i],[r,c]=[t.r,t.c];
   const here=focus===i?' here':'';
   const hop0=fx&&fx.who===0&&!fx.rolling&&shownPos(m,0)===i?' hop':'';
   const hop1=fx&&fx.who===1&&!fx.rolling&&shownPos(m,1)===i?' hop':'';
-  const markers=(shownPos(m,0)===i?artTag(faceSrc('player'),'나','pawn me'+(acting===0?' active':'')+hop0):'')+(shownPos(m,1)===i?artTag(faceSrc(STAGE_FACE[m.stageId]||'leo'),'AI','pawn ai'+(acting===1?' active':'')+hop1):'');
+  const markers=(shownPos(m,0)===i?pawnSprite('player','me'+(acting===0?' active':'')+hop0,'나'):'')+(shownPos(m,1)===i?pawnSprite(STAGE_FACE[m.stageId]||'leo','ai'+(acting===1?' active':'')+hop1,'AI'):'');
   const ev=cornerAt(m,i);
   const unit=t.cardId&&CARDS[t.cardId];
   const matched=unit&&unit.element===t.element&&unit.element!=='neutral';
@@ -121,7 +139,7 @@ function board(m){let cells=[];const n=m.tiles.length,acting=fx?.who??m.current;
   const label=ev?ev.name:(unit?unit.name:ELEMENTS[t.element]);
   const next=m.tiles[(i+1)%n],arrow=next.c>c?'→':next.r>r?'↓':next.c<c?'←':'↑';
   const distance=(i-focus+n)%n;const upcoming=!fx&&m.phase==='prep'&&distance>=1&&distance<=4;
-  cells.push(`<div data-action="map-tile" data-id="${i}" role="button" tabindex="0" aria-label="${i}번 ${esc(label)} ${who?who+' 영토':'빈 땅'}" class="tile el-${t.element}${upcoming?' upcoming':''}${ev?' event':''}${matched?' matched':''} owner-${t.owner===null?'none':t.owner}${here}${struck}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(label)}"><span class="tile-number">${i}</span><span class="tile-direction" aria-hidden="true">${arrow}</span><div class="tile-top"><span class="el-chip ${ev?'event':t.element}">${ev?'이벤트':ELEMENTS[t.element]}</span>${matched?`<span class="match-flag">생명 +${Math.max(1,t.level||1)}</span>`:''}${unit&&!matched&&unit.element!=='neutral'?`<span class="miss-flag">불일치</span>`:''}${who?`<span class="who">${who}</span>`:`<b>${t.level?'★'.repeat(t.level):''}</b>`}</div><div class="tile-unit">${esc(label)}${who&&t.level?` <i>Lv${t.level}</i>`:''}</div>${here?`<span class="here-flag">${acting?'적 위치':'내 위치'}</span>`:''}<div class="tile-pawns">${markers}</div></div>`);}
+  cells.push(`<div data-action="map-tile" data-id="${i}" role="button" tabindex="0" aria-label="${i}번 ${esc(label)} ${who?who+' 영토':'빈 땅'}" class="tile el-${t.element}${upcoming?' upcoming':''}${ev?' event':''}${matched?' matched':''} owner-${t.owner===null?'none':t.owner}${here}${struck}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(label)}"><span class="tile-number">${i}</span><span class="tile-direction" aria-hidden="true">${arrow}</span><div class="tile-top"><span class="el-chip ${ev?'event':t.element}">${elementIcon(ev?'event':t.element)}${ev?'이벤트':ELEMENTS[t.element]}</span>${matched?`<span class="match-flag">생명 +${Math.max(1,t.level||1)}</span>`:''}${unit&&!matched&&unit.element!=='neutral'?`<span class="miss-flag">불일치</span>`:''}${who?`<span class="who">${who}</span>`:`<b>${t.level?'★'.repeat(t.level):''}</b>`}</div><div class="tile-unit">${unit&&unit.token?`<img class="unit-token" src="./art/tokens/${unit.id}.png" alt="" draggable="false">`:''}${esc(label)}${who&&t.level?` <i>Lv${t.level}</i>`:''}</div>${here?`<span class="here-flag">${acting?'적 위치':'내 위치'}</span>`:''}<div class="tile-pawns">${markers}</div></div>`);}
  return `<div class="board" style="grid-template-columns:repeat(${m.w},minmax(0,1fr));grid-template-rows:repeat(${m.h},minmax(0,1fr))" role="group" aria-label="${n}칸 시계 방향 영토 보드">${cells.join('')}<div class="board-center" style="grid-column:2/${m.w};grid-row:2/${m.h}">${artTag(faceSrc(acting?STAGE_FACE[m.stageId]||'leo':'player'), acting?'상대':'나','center-face')}<div class="route-hint">↻ 시계 방향으로 이동</div><div>라운드 <b>${m.round}/${STAGES[m.stageId-1].maxRounds}</b></div><div class="score-me">나 ${goldScore(m,0)}점</div><div class="score-ai">AI ${goldScore(m,1)}점</div><div class="small">목표 ${STAGES[m.stageId-1].target+(m.difficulty==='hard'?180:0)}점</div></div>${dieHTML()}</div><div class="map-legend"><span class="legend-me">■ 내 땅</span><span class="legend-foe">■ 적 땅</span><span>↻ 시계 방향</span><span>점선: 다음 1~4칸</span><span>칸을 눌러 상세</span></div>`;
 }
 function supportChoices(extra=0){
@@ -220,7 +238,7 @@ function turnUI(m){const p=m.players[0];if(fx) return `<div class="prompt"><b>${
   return `<div class="prompt"><div class="go">${comfort?upBtn+skipBtn:skipBtn+upBtn}</div><div class="prompt-main"><b>내 땅 · <span class="el-chip ${c.kind==='unit'?c.element:c.kind}">${typeLabel(c)}</span> ${esc(c.name)} Lv.${t.level}</b><p class="small">카드 생명은 ${c.hp} 그대로입니다. 속성이 맞으면 생명 보너스가 +${t.level}에서 +${Math.min(3,t.level+1)}이 됩니다. 통행료와 점수도 오릅니다.</p></div></div>`;}
  return fightControls(m);
 }
-function actBanner(){if(!banner)return '';const a=banner;const title={spell:'주문',strike:'공격',blocked:'막힘',retreat:'퇴각'}[a.kind]||'효과';const art=a.id?artTag(cardSrc(a.id),a.name||title,'card-art'):'';return `<div class="act-banner kind-${a.kind} el-${a.element||'neutral'}"><p class="kicker">${title}</p>${art}${a.name?`<b>${esc(a.name)}</b>`:''}<p>${esc(a.line||'')}</p></div>`;}
+function actBanner(){if(!banner)return '';const a=banner;const title={spell:'주문',strike:'공격',blocked:'막힘',retreat:'퇴각'}[a.kind]||'효과';const art=a.id?artTag(cardSrc(a.id),a.name||title,'card-art'):'';const fxk={spell:'spell',strike:'capture',blocked:'guard',retreat:'gold'}[a.kind];return `<div class="act-banner kind-${a.kind} el-${a.element||'neutral'}">${fxSprite(fxk)}${a.kind==='strike'?fxSprite('hit'):''}<p class="kicker">${title}</p>${art}${a.name?`<b>${esc(a.name)}</b>`:''}<p>${esc(a.line||'')}</p></div>`;}
 function showBanner(act){if(!act)return;banner=act;if(bannerTimer)clearTimeout(bannerTimer);bannerTimer=setTimeout(()=>{banner=null;bannerTimer=null;preserveScroll=true;render();},1400);}
 let banner=null,bannerTimer=null;
 function goalLine(m){const st=STAGES[m.stageId-1];const target=st.target+(m.difficulty==='hard'?180:0);const mine=goldScore(m,0);return `<p class="goal">${m.round}턴 / ${st.maxRounds}턴 · 목표 ${target}점 · 지금 ${mine}점 · 남은 ${Math.max(0,target-mine)}점. 8턴 이후 먼저 도달하면 승리. 끝나면 높은 점수. 점수는 골드 + 땅마다 70 + 카드 가격 + 레벨×85.</p>`;}
@@ -255,9 +273,11 @@ function markStory(){
 }
 function chapterOpen(id){
   if(id===4) return save.progress.cleared.includes(3);
+  if(id===7) return save.progress.cleared.includes(6);
   return !!(save.story.done&&save.story.done[id-1]);
 }
-function chapterHTML(){return '';}
+const READ_CHAPTERS=Object.keys(STORY.stages).map(Number).filter(id=>id>STAGES.length).sort((a,b)=>a-b);
+function chapterHTML(){if(!READ_CHAPTERS.length)return '';const any=chapterOpen(READ_CHAPTERS[0]);return `<section class="section chapters"><h2>둘째 권 · 읽는 장</h2><p class="small">${any?'전투 없는 장입니다. 한 장을 다 읽으면 다음 장이 열립니다.':'6장을 클리어하면 7장부터 열립니다.'}</p><div class="chapter-list">${READ_CHAPTERS.map(id=>{const st=STORY.stages[id],open=chapterOpen(id),done=save.story.done&&save.story.done[id];return btn(`${open?'':'🔒 '}${esc(st.intro.kicker)}${done?' ✓':''}`,'story-open',`data-stage="${id}" data-part="chapter" ${open?'':'disabled'}`,'outline');}).join('')}</div></section>`;}
 function beginMatch(stageId,diff){startMatch(save,Number(stageId),diff);selectedUnit=null;selectedItem=null;sheet=null;story=null;page='game';sfx('tap');}
 function closeStory(finished=true){
   const then=story&&story.then;const wasOutro=story?.part==='outro';

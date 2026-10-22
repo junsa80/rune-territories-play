@@ -252,3 +252,21 @@ body.ingame .hand .card-title b{display:inline;white-space:normal;word-break:kee
 .mini-card.chosen,.mini-card.fit{outline:2px solid #f8d78d;outline-offset:2px}.hand .rarity-name{display:none}.hand .tag{font-size:10px;padding:2px 4px}.frame-key{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}.frame-sample{font-size:11px;min-width:90px;padding:10px 12px;background:#24384c;color:#fff;text-align:center}.card-legend{padding:10px 12px;background:#203448;border-radius:10px;border:1px solid #496078;margin:12px 0}.card-legend summary{cursor:pointer;font-size:12px;color:#c6d9e7}.frame-sample.rarity-l,.frame-sample.rarity-e{padding-right:25px}.reveal-card.rarity-l{box-shadow:0 0 42px #f8cd6d77}.reveal-card .rarity-name{display:inline}
 @media(max-width:720px){.hand .mini-card[class*="type-"]{border-width:3px}.hand .mini-card.rarity-u{border-width:4px}.hand .mini-card.rarity-r::before,.hand .mini-card.rarity-e::before{inset:1px}.hand .card-title{gap:3px}.hand .el-chip{font-size:9px;padding:1px 4px}.frame-key{gap:9px}.frame-sample{flex:1 0 90px}.reveal-card[class*="type-"]{border-width:5px}}
 .hard-hint{background:#313223;border:1px solid #9c8756;border-left:4px solid #e8c67c;border-radius:10px;padding:12px;margin:14px 0}.hard-hint>b{color:#f9d78e;font-size:16px}.hard-hint p{font-size:14px;line-height:1.55}.hard-hint .small{font-size:12px;color:#d0cbb7}
+/* 0.1.43 sprites (art/sprites). Pawns: 10x10 grid, dice: 8x2, fx: 8x7, elements: 6x1. */
+.pawn.sp-pawn{display:inline-block;aspect-ratio:1/1;height:auto;border:0;border-radius:0;background-color:transparent;background-image:var(--sp-pawns);background-size:1000% 1000%;background-repeat:no-repeat;background-position:0% var(--row);animation:spIdle 1s steps(4,end) infinite;filter:drop-shadow(0 0 1px #000)}
+.pawn.sp-pawn.me{filter:drop-shadow(0 0 1px #74eaff) drop-shadow(0 0 1px #000)}
+.pawn.sp-pawn.ai{filter:drop-shadow(0 0 1px #ff9d7b) drop-shadow(0 0 1px #000)}
+.pawn.sp-pawn.active,.pawn.sp-pawn.hop{box-shadow:none}
+.pawn.sp-pawn.hop{animation:spHop .6s steps(6,end) 1}
+@keyframes spIdle{from{background-position:0% var(--row)}to{background-position:44.444% var(--row)}}
+@keyframes spHop{from{background-position:44.444% var(--row)}to{background-position:111.111% var(--row)}}
+.die.sp-die{background:var(--sp-dice) var(--face)/800% 200% no-repeat;box-shadow:none;border-radius:0;width:72px;height:72px;filter:drop-shadow(0 8px 14px #000c)}
+.die.sp-die .die-face{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.die.sp-die.rolling{animation:spRoll .43s steps(6,end) infinite}
+@keyframes spRoll{from{background-position:0% 0%}to{background-position:85.714% 0%}}
+.sp-fx{position:absolute;left:50%;top:38%;width:96px;height:96px;margin:-48px 0 0 -48px;background:var(--sp-fx) 0 0/800% 700% no-repeat;pointer-events:none;z-index:2}
+.sp-el{display:inline-block;width:11px;height:11px;margin-right:2px;vertical-align:-2px;background:var(--sp-elements) 0 0/600% 100% no-repeat}
+.unit-token{width:14px;height:14px;border-radius:50%;vertical-align:-3px;margin-right:2px}
+.chapter-list{display:flex;flex-wrap:wrap;gap:6px}.chapter-list button{font-size:12px;padding:6px 8px}
+@media(max-width:720px){.unit-token{width:10px;height:10px;vertical-align:-1px}.sp-el{width:8px;height:8px;margin-right:1px}.die.sp-die{width:60px;height:60px}}
+@media(prefers-reduced-motion:reduce){.pawn.sp-pawn,.die.sp-die.rolling{animation:none}.sp-fx{display:none}}

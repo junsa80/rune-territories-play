@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "image": "elements@2x.png",
+  "scale": 2,
+  "size": {
+   "w": 288,
+   "h": 48
+  },
+  "frame": {
+   "w": 48,
+   "h": 48
+  },
+  "generator": "tools/gen_sprites.py v2"
+ },
+ "frames": {
+  "fire": {
+   "x": 0,
+   "y": 0,
+   "w": 48,
+   "h": 48
+  },
+  "water": {
+   "x": 48,
+   "y": 0,
+   "w": 48,
+   "h": 48
+  },
+  "earth": {
+   "x": 96,
+   "y": 0,
+   "w": 48,
+   "h": 48
+  },
+  "air": {
+   "x": 144,
+   "y": 0,
+   "w": 48,
+   "h": 48
+  },
+  "neutral": {
+   "x": 192,
+   "y": 0,
+   "w": 48,
+   "h": 48
+  },
+  "event": {
+   "x": 240,
+   "y": 0,
+   "w": 48,
+   "h": 48
+  }
+ },
+ "animations": {}
+}
