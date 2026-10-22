@@ -196,8 +196,8 @@ img.pawn.active{width:22px;height:22px;z-index:5;box-shadow:0 0 0 2px #fff}
   body.ingame,body.ingame #app{height:auto;min-height:100dvh;overflow:visible}
   body.ingame .game-area{display:block;overflow:visible;max-height:none}
   body.ingame .game-layout{display:flex;overflow:visible;min-height:0}
-  body.ingame .board-slot{flex:0 0 auto;min-height:0}
-  body.ingame .board{width:min(100%,46dvh,420px)}
+  body.ingame .board-slot{flex:0 0 auto;min-height:0;height:auto;container-type:normal;display:block}
+  body.ingame .board{width:min(100%,78vw,420px);height:auto;aspect-ratio:1/1;max-height:none}
   body.ingame .game-side,body.ingame .dock{flex:0 0 auto;max-height:none;overflow:visible;touch-action:auto}
   body.ingame .hand,body.ingame .choices{touch-action:pan-x pan-y}
 }
