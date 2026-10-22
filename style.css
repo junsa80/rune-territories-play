@@ -221,3 +221,6 @@ img.pawn.active{width:22px;height:22px;z-index:5;box-shadow:0 0 0 2px #fff}
 .bonus-line b{color:#f8d78d}
 .deck-sum .pills{margin:4px 0}
 .deck-sum .el-chip{font-size:12px}
+body.ingame .hand .mini-card{display:flex;flex-direction:column;align-items:stretch}
+body.ingame .hand .card-title{display:flex;flex-direction:row;flex-wrap:wrap;width:100%;writing-mode:horizontal-tb}
+body.ingame .hand .card-title b{display:inline;white-space:normal;word-break:keep-all;line-height:1.25}

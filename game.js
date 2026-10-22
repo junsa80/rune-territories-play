@@ -336,14 +336,15 @@ export function autoTurn(s,holdStrike=false){
       const rare={U:6,R:10,E:16,L:22}[c.rarity]||0;
       return {id,score:c.hp*1.1+c.atk*0.9+match*8-c.cost*0.08+(c.trait?rare:0)+(match&&c.trait?12:0)+(stage.style==='fortress'?c.hp*0.5:0)+(stage.style==='aggressive'?c.atk*0.4:0)};
     }).sort((a,b)=>b.score-a.score);
-    const reserve=stage.style==='aggressive'?8:20;
+    // Stage 1 keeps cash back, so a first game still finds empty tiles.
+    const reserve=stage.id===1&&m.current===1?280:stage.style==='aggressive'?8:20;
     const pick=ranked.length?CARDS[ranked[0].id]:null;
     const pay=pick?pick.cost-Math.min(pick.cost,p.placeCut||0):0;
     if(pick&&p.gold>=pay+reserve){place(s,ranked[0].id);return;}
   } else if(t.owner===m.current){
     const cost=45*t.level;
     // Level 1 stays crackable unless the owner is actually rich. Fortress still walls up later.
-    const reserve=(stage.style==='fortress'?(t.level===1?120:70):stage.style==='aggressive'?100:80)-(CARDS[t.cardId]?.trait?30:0);
+    const reserve=(stage.id===1&&m.current===1?320:stage.style==='fortress'?(t.level===1?120:70):stage.style==='aggressive'?100:80)-(CARDS[t.cardId]?.trait?30:0);
     if(t.level<3&&p.gold>=cost+reserve){upgrade(s);return;}
   } else {
     const items=availableItem(s),units=p.hand.filter(id=>CARDS[id].kind==='unit');

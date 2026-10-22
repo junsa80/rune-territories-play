@@ -1,5 +1,5 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.36';
-import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement} from './game.js?v=0.1.36';
+import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.37';
+import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf} from './game.js?v=0.1.37';
 import {unlockAudio, sfx, toggleMute, muted} from './audio.js';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
@@ -66,10 +66,18 @@ function rewardHTML(){const r=save.lastReward;if(!r)return '';
  if(r.achievement)return `<section class="section rewards"><h2>업적 보상</h2><p>${esc(ACHIEVEMENTS.find(a=>a.id===r.achievement)?.name||'업적')}${r.hotpack?.length?` · ${esc(r.packLabel||'핫팩')} ${r.hotpack.length}장`:''}${r.dustGain?` · 재료 +${r.dustGain}`:''}</p><div class="reward-grid">${line(r.hotpack)}</div></section>`;
  return `<section class="section rewards"><h2>최근 획득 보상</h2><p>스테이지 ${r.stageId} 카드팩 ${r.packs}개${r.daily?' · 오늘 첫 승리 ×2':''}${r.first?' · 최초 클리어':''}${r.ticket?` · 선택권 +${r.ticket}`:''}</p><p class="small">이 팩은 방금 이긴 스테이지 카드만 나옵니다. 선택권과 제작은 이미 클리어한 스테이지 전체입니다.</p>${r.key?`<p class="key-reward">확정 공략 카드: <b>${esc(CARDS[r.key.id].name)}</b>${r.key.converted?' (보유 상한 → 재료)':''}</p>`:''}<div class="reward-grid">${line(r.pulled)}</div></section>`;
 }
+function invadeScore(id){
+  const t=getLandedTile(save);
+  try{
+    const v=combatPreview(save,id);
+    const match=CARDS[id].element===t.element&&CARDS[id].element!=='neutral'?40:0;
+    return (v.success?1000:0)+match+v.attack;
+  }catch{return -999;}
+}
 function unitPool(kind){
   const m=save.match;if(!m)return [];
   if(kind==='place'){const ids=[...new Set(placementOptions(save))];const t=getLandedTile(save);return ids.sort((a,b)=>((CARDS[a].element===t.element&&CARDS[a].element!=='neutral')?0:1)-((CARDS[b].element===t.element&&CARDS[b].element!=='neutral')?0:1));}
-  return [...new Set(m.players[0].hand.filter(id=>CARDS[id].kind==='unit'))];
+  return [...new Set(m.players[0].hand.filter(id=>CARDS[id].kind==='unit'))].sort((a,b)=>invadeScore(b)-invadeScore(a));
 }
 function ensureSelected(pool){if(!pool.length){selectedUnit=null;return;}if(!pool.includes(selectedUnit))selectedUnit=pool[0];}
 function handAttrs(id){
@@ -162,10 +170,16 @@ function fightControls(m){const p=m.players[0],t=getLandedTile(save);
  if(selectedItem&&!supports.includes(selectedItem))selectedItem=null;
  const pay=extra+(selectedItem?CARDS[selectedItem].cost:0);
  const can=!!(selectedUnit&&p.gold>=pay);
- const options=units.map(id=>btn(`${CARDS[id].element===t.element&&CARDS[id].element!=='neutral'?'● ':''}${CARDS[id].name}`,'select-unit',`data-id="${id}"`,id===selectedUnit?'chosen':'')).join('');
- const go=`${btn('침략 확정','invade',`${can?'':'disabled'} data-id="${selectedUnit||''}"`,'primary')}${units.length>1?btn('다음 유닛','next-unit','data-pool="invade"','outline'):''}${btn('퇴각','pass','','outline')}`;
+ const winning=units.filter(id=>{try{const v=combatPreview(save,id);return v.success&&CARDS[id].cost<=p.gold;}catch{return false;}});
+ const selectedOk=selectedUnit&&winning.includes(selectedUnit);
+ const toll=tollOf(m,t);
+ const options=units.map(id=>btn(`${winning.includes(id)?'● ':''}${CARDS[id].name}`,'select-unit',`data-id="${id}"`,id===selectedUnit?'chosen':'')).join('');
+ const invadeBtn=btn('침략 확정','invade',`${can?'':'disabled'} data-id="${selectedUnit||''}"`,selectedOk?'primary':'outline');
+ const leaveBtn=btn(`통행료 ${toll}G 내고 지나감`,'pass','',selectedOk?'outline':'primary');
+ const go=`${selectedOk?invadeBtn:leaveBtn}${selectedOk?leaveBtn:invadeBtn}${units.length>1?btn('다음 유닛','next-unit','data-pool="invade"','outline'):''}`;
+ const coach=selectedOk?'이 유닛이면 장비를 빼도 뚫립니다. 상대 장비로 결과가 바뀔 수 있습니다.':winning.length?'고른 유닛으로는 막힙니다. 점 있는 카드로 바꾸세요.':'지금 손패로는 이 땅을 못 뚫습니다. 지나가면 통행료만 냅니다.';
  const me=selectedUnit?selectedUnit:null;
- return `<div class="prompt battle-prompt"><div class="versus">${sideCard(t.cardId,'적',null,true)}${sideCard(me,'나',selectedItem,false)}</div>${forecastHTML(openForecast(m),m)}<div class="go">${go}</div><div class="choices unit-choices">${options||'손패에 침략용 유닛이 없습니다.'}</div><div class="choices">${supportButtons(supports)}</div></div>`;
+ return `<div class="prompt battle-prompt"><div class="versus">${sideCard(t.cardId,'적',null,true)}${sideCard(me,'나',selectedItem,false)}</div>${forecastHTML(openForecast(m),m)}<p class="small">${coach}</p><div class="go">${go}</div><div class="choices unit-choices">${options||'손패에 침략용 유닛이 없습니다.'}</div><div class="choices">${supportButtons(supports)}</div></div>`;
 }
 function defenseControls(m){
   const supports=supportChoices(0);
@@ -177,16 +191,17 @@ function defenseControls(m){
 function turnUI(m){const p=m.players[0];if(fx) return `<div class="prompt"><b>${fx.who?'상대':'나'} ${fx.rolling?'주사위를 굴리는 중':'이동 중'} · ${fx.face}</b></div>`;if(m.ended)return `<div class="prompt"><div class="go">${btn('캠페인으로','finish','','primary')}</div><div class="prompt-main"><b>${m.winner===0?'승리':'패배'}</b><p class="small">${esc(m.reason)} · ${goldScore(m,0)} : ${goldScore(m,1)}</p></div></div>`;
  if(m.phase==='strike') return defenseControls(m);
  if(m.current===1)return '<div class="prompt">AI가 판단 중입니다…</div>';
- if(m.phase==='prep'){const spells=p.hand.filter(id=>legalSpell(save,id));const pay=m.salaryNotice?`<span class="salary">월급 +${m.salaryNotice}G</span>`:'';return `<div class="prompt"><div class="go">${btn('주사위 굴리기','roll','','primary')}</div><div class="prompt-main"><b>이동 준비</b>${pay}${spells.length?`<div class="choices">${spells.map(id=>btn(`${CARDS[id].name} 보기`,'inspect',`data-id="${id}" data-intent="spell"`,'outline')).join('')}</div>`:''}</div></div>`;}
+ if(m.phase==='prep'){const spells=p.hand.filter(id=>legalSpell(save,id));const pay=m.salaryNotice?`<span class="salary">월급 +${m.salaryNotice}G</span>`:'';return `<div class="prompt"><div class="go">${btn('주사위 굴리기','roll','','primary')}</div><div class="prompt-main"><b>이동 준비</b>${pay}<p class="small">굴리면 고리를 따라 움직입니다. 빈 칸, 내 칸, 적 칸에 따라 할 일이 달라집니다.</p>${spells.length?`<div class="choices">${spells.map(id=>btn(`${CARDS[id].name} 보기`,'inspect',`data-id="${id}" data-intent="spell"`,'outline')).join('')}</div>`:''}</div></div>`;}
  const t=getLandedTile(save);if(cornerAt(m,t.index)){const ev=cornerAt(m,t.index);return `<div class="prompt"><div class="go">${btn('받기','pass','','primary')}</div><div class="prompt-main"><b>${esc(ev.name)}</b><p class="small">${esc(ev.text)}</p></div></div>`;}
  if(t.owner===null){const opts=unitPool('place');ensureSelected(opts);const c=selectedUnit&&CARDS[selectedUnit];
   const fits=opts.filter(id=>CARDS[id].element===t.element&&CARDS[id].element!=='neutral');
   const go=c?`${btn('배치','place',`data-id="${c.id}"`,'primary')}${opts.length>1?btn('다음 유닛','next-unit','data-pool="place"','outline'):''}${btn('안 둠','pass','','outline')}`:btn('안 둠','pass','','primary');
-  return `<div class="prompt"><div class="go">${go}</div><div class="prompt-main"><b><span class="el-chip ${t.element}">${ELEMENTS[t.element]} 땅</span></b>${c?`<p class="small">선택 <b>${esc(c.name)}</b> · ${c.cost}G · <span class="el-chip ${c.element}">${ELEMENTS[c.element]}</span> 공격 ${c.atk} / 생명 ${c.hp}${c.element===t.element&&c.element!=='neutral'?' · 속성 맞음':''}</p>`:'<p class="small">배치할 손패 유닛이 없습니다.</p>'}<p class="small">맞는 몬스터: ${fits.length?fits.map(id=>esc(CARDS[id].name)).join(', '):'손패에 없음'}</p><div class="choices unit-choices">${opts.map(id=>btn(`${CARDS[id].element===t.element&&CARDS[id].element!=='neutral'?'● ':''}${CARDS[id].name}`,'select-unit',`data-id="${id}"`,id===selectedUnit?'chosen':'')).join('')}</div></div></div>`;}
- if(t.owner===0){const cost=45*t.level;const c=CARDS[t.cardId];const tr=c.trait&&TRAITS[c.trait];const now=traitNumbers(m,t);
-  const nxt=t.level<3?traitNumbers(m,t,t.level+1):null;
-  const grow=tr?`${tr.name}: ${tr.text} 강화 폭 +${c.grow??3}.${nxt?` 특성 생명 +${now.hp}→+${nxt.hp} · 반격 +${now.ret}→+${nxt.ret} · 통행 ${now.toll}→${nxt.toll}G`:''}`:`특성 없음. 강화할 때마다 생명 +${c.grow??3}.`;
-  return `<div class="prompt"><div class="go">${btn(`강화 ${cost}G`,'upgrade',`${t.level>=3||p.gold<cost?'disabled':''}`)}${btn('유지','pass','','outline')}</div><div class="prompt-main"><b>내 몬스터 · <span class="el-chip ${c.element}">${ELEMENTS[c.element]}</span> ${esc(c.name)} Lv.${t.level}</b><p class="small">${esc(grow)}</p></div></div>`;}
+  const coach=fits.length?`이 땅은 ${ELEMENTS[t.element]}입니다. 점 있는 카드가 맞습니다.`:`손패에 맞는 속성이 없습니다. 안 두고 넘겨도 됩니다.`;
+  return `<div class="prompt"><div class="go">${go}</div><div class="prompt-main"><b><span class="el-chip ${t.element}">${ELEMENTS[t.element]} 땅</span></b><p class="small">${coach}</p>${c?`<p class="small">선택 <b>${esc(c.name)}</b> · ${c.cost}G · <span class="el-chip ${c.element}">${ELEMENTS[c.element]}</span> 공격 ${c.atk} / 생명 ${c.hp}${c.element===t.element&&c.element!=='neutral'?' · 속성 맞음':''}</p>`:'<p class="small">배치할 손패 유닛이 없습니다.</p>'}<div class="choices unit-choices">${opts.map(id=>btn(`${CARDS[id].element===t.element&&CARDS[id].element!=='neutral'?'● ':''}${CARDS[id].name}`,'select-unit',`data-id="${id}"`,id===selectedUnit?'chosen':'')).join('')}</div></div></div>`;}
+ if(t.owner===0){const cost=45*t.level;const c=CARDS[t.cardId];const up=t.level<3&&p.gold>=cost;const comfort=p.gold>=cost+50;
+  const upBtn=btn(`강화 ${cost}G`,'upgrade',`${up?'':'disabled'}`,comfort?'primary':'outline');
+  const skipBtn=btn('넘김','pass','',comfort?'outline':'primary');
+  return `<div class="prompt"><div class="go">${comfort?upBtn+skipBtn:skipBtn+upBtn}</div><div class="prompt-main"><b>내 땅 · <span class="el-chip ${c.element}">${ELEMENTS[c.element]}</span> ${esc(c.name)} Lv.${t.level}</b><p class="small">강화하면 생명이 ${c.grow??3} 오릅니다. 비용 ${cost}G. 돈이 빠듯하면 넘기세요.</p></div></div>`;}
  return fightControls(m);
 }
 function actBanner(){if(!banner)return '';const a=banner;const title={spell:'주문',strike:'공격',blocked:'막힘',retreat:'퇴각'}[a.kind]||'효과';const art=a.id?artTag(cardSrc(a.id),a.name||title,'card-art'):'';return `<div class="act-banner kind-${a.kind} el-${a.element||'neutral'}"><p class="kicker">${title}</p>${art}${a.name?`<b>${esc(a.name)}</b>`:''}<p>${esc(a.line||'')}</p></div>`;}
@@ -195,7 +210,7 @@ let banner=null,bannerTimer=null;
 function game(){const m=save.match;if(!m)return home();const p=m.players[0];
  if(m.phase==='land'&&m.current===0&&!m.ended){const t=getLandedTile(save);if(t.owner===null)ensureSelected(unitPool('place'));else if(t.owner===1)ensureSelected(unitPool('invade'));}
  const cards=p.hand.map(id=>{const [act,intent,chosen]=handAttrs(id);return cardMini(id,'',`data-action="${act}" data-id="${id}" data-intent="${intent}"`,chosen);}).join('');
- return `<section class="game-area"><div class="game-header"><b>${esc(STAGES[m.stageId-1].name)} · ${m.difficulty==='hard'?'어려움':'일반'}</b><span>💰 ${p.gold}G · AI ${m.players[1].gold}G</span>${!m.ended?btn('항복','surrender','','quiet small-button'):''}</div>${m.goldNote?`<p class="gold-note">${esc(m.goldNote)}</p>`:''}${actBanner()}<div class="game-layout"><div class="board-slot">${board(m)}</div><div class="game-side"><div class="dock">${turnUI(m)}</div><div class="hand"><b>손패 ${p.hand.length}</b><div class="hand-row">${cards||'<p>손패 없음</p>'}</div></div><details class="battle-log"><summary>전투 로그</summary><div>${save.log.slice(0,12).map(s=>`<p>${esc(s)}</p>`).join('')}</div></details></div></div></section>${battleSheet(m)}`;}
+ return `<section class="game-area"><div class="game-header"><b>${esc(STAGES[m.stageId-1].name)} · ${m.difficulty==='hard'?'어려움':'일반'}</b><span>나 ${p.gold}G · ${goldScore(m,0)}점</span><span>상대 ${m.players[1].gold}G · ${goldScore(m,1)}점</span>${!m.ended?btn('항복','surrender','','quiet small-button'):''}</div>${m.goldNote?`<p class="gold-note">${esc(m.goldNote)}</p>`:''}${actBanner()}<div class="game-layout"><div class="board-slot">${board(m)}</div><div class="game-side"><div class="dock">${turnUI(m)}</div><div class="hand"><b>손패 ${p.hand.length}</b><div class="hand-row">${cards||'<p>손패 없음</p>'}</div></div><details class="battle-log"><summary>전투 로그</summary><div>${save.log.slice(0,12).map(s=>`<p>${esc(s)}</p>`).join('')}</div></details></div></div></section>${battleSheet(m)}`;}
 function deckCheck(){const st=STAGES.find(x=>x.id===previewStage)||STAGES[0];const hook=STORY.stages[st.id].intro.hook;return `<section class="section"><h1>대전 전 카드 확인</h1><div class="boss-row">${artTag(faceSrc(STAGE_FACE[st.id]),st.enemy,'boss-face')}<div><b>${esc(st.name)}</b><p>상대 ${esc(st.enemy)} · ${esc(st.focus)}</p><p class="story-quote">${esc(hook)}</p><p class="small">내 덱의 그림과 능력을 확인한 다음 대전을 시작하세요.</p></div></div>${deckSummary()}<div class="collection-grid">${save.deck.map(id=>cardMini(id, btn('크게 보기','inspect',`data-id="${id}" data-intent="view"`,'small-button outline'))).join('')}</div><div class="action-row">${btn('이 덱으로 일반 대전','start',`data-stage="${st.id}" data-diff="normal" ${save.match?'disabled':''}`,'primary')}${btn('이야기','story-open',`data-stage="${st.id}"`,'outline')}${btn('캠페인으로','home','','outline')}</div></section>`;}
 function storyPack(){
   if(!story) return null;
