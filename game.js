@@ -298,7 +298,7 @@ export function resolveStrike(s,unitId,atkSupport=null,defSupport=null){
     log(s,`[${who(atk)}] 침략 실패 (${v.attack}/${v.defenderHP}) · 통행료 ${moved}G`);
   }
   m.act={kind:v.success?'strike':'blocked',id:unit.id,name:unit.name,element:unit.element,who:atk,line:spells.map(x=>`${whoName(x.who)} ${x.name} · ${x.line}`).join(' / ')};
-  m.battleResult={attacker:atk,defender:def,unitId,atkSupport:atkSupport||null,defSupport:defSupport||null,defenderId,element:t.element,tile:t.index,success:v.success,attack:v.attack,defenderHP:v.defenderHP,paid:moved,spells};
+  m.battleResult={attacker:atk,defender:def,unitId,atkSupport:atkSupport||null,defSupport:defSupport||null,defenderId,element:t.element,tile:t.index,success:v.success,attack:v.attack,defenderHP:v.defenderHP,defense:v.defense,retaliation:v.retaliation,paid:moved,spells};
   completeTurn(s);return v.success;
 }
 export function declareStrike(s,unitId,supportId=null){
