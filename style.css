@@ -188,3 +188,21 @@ img.pawn.active{width:22px;height:22px;z-index:5;box-shadow:0 0 0 2px #fff}
 @keyframes actPop{from{opacity:0;transform:translateX(-50%) scale(.8)}to{opacity:1;transform:translateX(-50%) scale(1)}}
 @keyframes lunge{0%{transform:translateX(0)}40%{transform:translateX(18px) scale(1.06)}100%{transform:translateX(0)}}
 @keyframes retreat{0%{transform:translateX(-50%) translateX(0)}100%{transform:translateX(-50%) translateX(-28px);opacity:.2}}
+
+@keyframes actPop{from{opacity:0}to{opacity:1}}
+@keyframes lunge{0%{transform:translateX(0)}40%{transform:translateX(10px)}100%{transform:translateX(0)}}
+@keyframes retreat{from{opacity:1}to{opacity:1}}
+@media(max-width:720px){
+  body.ingame,body.ingame #app{height:auto;min-height:100dvh;overflow:visible}
+  body.ingame .game-area{display:block;overflow:visible;max-height:none}
+  body.ingame .game-layout{display:flex;overflow:visible;min-height:0}
+  body.ingame .board-slot{flex:0 0 auto;min-height:0}
+  body.ingame .board{width:min(100%,46dvh,420px)}
+  body.ingame .game-side,body.ingame .dock{flex:0 0 auto;max-height:none;overflow:visible;touch-action:auto}
+  body.ingame .hand,body.ingame .choices{touch-action:pan-x pan-y}
+}
+.act-banner{position:static;left:auto;top:auto;transform:none;width:auto;display:flex;align-items:center;gap:8px;margin:6px 0 0;padding:6px 8px;pointer-events:none}
+.act-banner .card-art{width:42px;height:42px;margin:0;flex:0 0 auto}
+.act-banner p,.act-banner b{margin:0}
+.sheet-back{align-items:flex-start;overflow:auto;-webkit-overflow-scrolling:touch}
+.battle-sheet .go{position:sticky;bottom:0;background:#1b3146;padding-top:8px}
