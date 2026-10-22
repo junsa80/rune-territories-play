@@ -1,4 +1,4 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, DECK_SIZE, COPY_LIMIT, STARTER_DECK, RARITIES, RARITY_WEIGHTS, DUST_GAIN, DUST_COST, DAILY_PACKS, STAGE_PACKS, HOT_PACK, ACHIEVEMENTS, STORY, makeBoard} from './data.js?v=0.1.43';
+import {VERSION, CARDS, CARD_LIST, STAGES, TRIO_STAGE, DECK_SIZE, COPY_LIMIT, STARTER_DECK, RARITIES, RARITY_WEIGHTS, DUST_GAIN, DUST_COST, DAILY_PACKS, STAGE_PACKS, HOT_PACK, ACHIEVEMENTS, STORY, makeBoard} from './data.js?v=0.1.44';
 
 export function newSave(seed = Date.now()) {
   const collection = {};
@@ -18,8 +18,13 @@ export function shuffle(s, arr) {
 }
 export function log(s, msg) {s.log.unshift(msg);s.log.length=Math.min(s.log.length,100);}
 function noteGold(m,text){if(m) m.goldNote=text;}
-function whoName(id){return id?'적':'나';}
-export function currentStage(s) {return STAGES.find(x=>x.id===s.match?.stageId);}
+function whoName(id){return id===0?'나':id===2?'적2':'적';}
+/** Opponent for one-target effects. 1:1 keeps 1-who; 3p picks the richest other side (lowest id on tie). */
+function foeOf(m,who){if(m.players.length===2)return 1-who;let best=-1,score=-Infinity;for(const p of m.players){if(p.id===who)continue;const v=goldScore(m,p.id);if(v>score){score=v;best=p.id;}}return best;}
+/** Highest total assets; ties go to the lower id (1:1: a>=b?0:1). */
+function leaderOf(m){let best=0;for(const p of m.players)if(goldScore(m,p.id)>goldScore(m,best))best=p.id;return best;}
+export function currentStage(s) {return stageById(s.match?.stageId);}
+export function stageById(id){return STAGES.find(x=>x.id===id)||(id===TRIO_STAGE.id?TRIO_STAGE:undefined);}
 export function validateDeck(s) {
   ensure(s.deck.length===DECK_SIZE,`덱은 ${DECK_SIZE}장이어야 합니다.`);
   const used={}; for(const id of s.deck) {ensure(!!CARDS[id],`알 수 없는 카드: ${id}`);used[id]=(used[id]||0)+1;ensure(used[id]<=COPY_LIMIT, '동일 카드 4장 제한');ensure(used[id]<=(s.collection[id]||0),'소유 수량 초과');}
@@ -52,19 +57,21 @@ function refill(s,p) {while(p.hand.length<4 && (p.deck.length || p.discard.lengt
 function removeHand(p,id) {const i=p.hand.indexOf(id);ensure(i>=0,'손패에 없는 카드');p.hand.splice(i,1);p.discard.push(id);}
 export function startMatch(s,stageId,difficulty='normal') {
   ensure(!s.match,'진행 중인 대전이 있습니다.');validateDeck(s);
-  const stage=STAGES.find(x=>x.id===stageId);ensure(!!stage,'없는 스테이지');
-  ensure(stageId<=s.progress.highestUnlocked,'아직 개방되지 않은 스테이지');
+  const stage=stageById(stageId);ensure(!!stage,'없는 스테이지');
+  const trio=stage===TRIO_STAGE;
+  if(trio) ensure(trioOpen(s)&&difficulty==='normal','3인 시범은 1장 클리어 뒤 일반으로만 열립니다.');
+  else ensure(stageId<=s.progress.highestUnlocked,'아직 개방되지 않은 스테이지');
   ensure(['normal','hard'].includes(difficulty),'지원하지 않는 난이도');
-  ensure(difficulty!=='hard'||s.progress.cleared.includes(stageId),'어려움 난이도는 해당 스테이지 최초 클리어 후 개방됩니다.');
+  ensure(trio||difficulty!=='hard'||s.progress.cleared.includes(stageId),'어려움 난이도는 해당 스테이지 최초 클리어 후 개방됩니다.');
   const mkPlayer=(id,deck,pos,bonus=0)=>({id,pos,gold:220+bonus,deck:shuffle(s,deck),hand:[],discard:[],spellUsed:false,placeCut:0});
   const board=makeBoard(stage.board.w,stage.board.h);
   const aiBonus=difficulty==='hard'?80:0;
   s.match={stageId,difficulty,round:1,phase:'prep',current:0,steps:0,turns:0,ended:false,w:board.w,h:board.h,corners:board.corners,
-    players:[mkPlayer(0,s.deck,0),mkPlayer(1,stage.enemyDeck,board.aiStart,aiBonus)],
+    players:trio?[mkPlayer(0,s.deck,0),...stage.enemyDecks.map((d,i)=>mkPlayer(i+1,d,Math.round(board.ring.length*(i+1)/3)))]:[mkPlayer(0,s.deck,0),mkPlayer(1,stage.enemyDeck,board.aiStart,aiBonus)],
     tiles:board.ring.map(([r,c],i)=>({index:i,r,c,element:board.elements[i],owner:null,cardId:null,level:0}))};
   for(const p of s.match.players)refill(s,p);
   log(s,`[대전] ${stage.name} · ${difficulty==='hard'?'어려움':'일반'} 시작`);
-  const hook=STORY.stages[stageId]?.intro?.hook;
+  const hook=trio?stage.hook:STORY.stages[stageId]?.intro?.hook;
   if(hook) log(s,`[${stage.enemy}] ${hook}`);
   grantSalary(s);
 }
@@ -87,7 +94,7 @@ function defendItemMods(item,defender,tile){
 function applySpellEffect(s,who,c){const m=s.match,p=m.players[who];
  let line='';
  if(c.effect==='gainGold'){p.gold+=c.power;line=`${whoName(who)} +${c.power}G`;}
- if(c.effect==='drain'){const foe=m.players[1-who];const lost=Math.min(c.power,foe.gold);foe.gold-=lost;line=`${whoName(1-who)} -${lost}G 소멸`;noteGold(m,`${whoName(1-who)} → 소멸 ${lost}G`);}
+ if(c.effect==='drain'){const fid=foeOf(m,who),foe=m.players[fid];const lost=Math.min(c.power,foe.gold);foe.gold-=lost;line=`${whoName(fid)} -${lost}G 소멸`;noteGold(m,`${whoName(fid)} → 소멸 ${lost}G`);}
  if(c.effect==='wage'){const lands=ownerLands(m,who).length;const gain=lands>=3?c.power:c.power2;p.gold+=gain;line=`${whoName(who)} +${gain}G`;}
  if(c.effect==='levelPay'){const levels=ownerLands(m,who).reduce((a,t)=>a+t.level,0);const gain=levels*c.power;p.gold+=gain;line=`${whoName(who)} +${gain}G`;}
  if(c.effect==='placeCut'){p.placeCut=(p.placeCut||0)+c.power;line=`다음 배치 -${c.power}G`;}
@@ -171,7 +178,7 @@ export function traitNumbers(m,t,level=t.level){
   return {hp:d.hp+auraHP(m,t), ret:d.ret, toll:tollOf(m,t,level)};
 }
 export function combatPreview(s,attackerId,itemId=null,defItemId=null){const m=s.match,p=m.players[m.current],t=m.tiles[p.pos];
- ensure((m.phase==='land'||m.phase==='strike')&&t.owner===1-m.current,'침략할 적 영토가 아닙니다.');
+ ensure((m.phase==='land'||m.phase==='strike')&&t.owner!==null&&t.owner!==m.current,'침략할 적 영토가 아닙니다.');
  const a=CARDS[attackerId],d=CARDS[t.cardId],item=itemId?CARDS[itemId]:null,defItem=defItemId?CARDS[defItemId]:null;
  ensure(a?.kind==='unit'&&p.hand.includes(attackerId),'공격 유닛 손패 없음');
  if(item){ensure(item.kind==='item'&&p.hand.includes(itemId),'아이템 손패 없음');}
@@ -216,7 +223,7 @@ export function playCorner(s){const m=s.match;ensure(m&&m.phase==='land','이벤
  const who=m.current?'AI':'나';
  if(ev.id==='pay'){p.gold+=40;noteGold(m,`급여성소 → ${who} 40G`);log(s,`[${who}] ${ev.name} +40G`);}
  else if(ev.id==='altar'){const n=m.tiles.filter(x=>x.owner===m.current&&x.cardId&&x.element==='fire').length;const gain=n?n*16:24;p.gold+=gain;noteGold(m,`화염 제단 → ${who} ${gain}G`);log(s,`[${who}] ${ev.name} +${gain}G`);}
- else if(ev.id==='levy'){const paid=Math.min(22,p.gold);p.gold-=paid;m.players[1-m.current].gold+=paid;noteGold(m,`${who} → ${whoName(1-m.current)} ${paid}G`);log(s,`[${who}] ${ev.name} ${paid}G`);}
+ else if(ev.id==='levy'){const fid=foeOf(m,m.current);const paid=Math.min(22,p.gold);p.gold-=paid;m.players[fid].gold+=paid;noteGold(m,`${who} → ${whoName(fid)} ${paid}G`);log(s,`[${who}] ${ev.name} ${paid}G`);}
  else {p.placeCut=(p.placeCut||0)+20;log(s,`[${who}] ${ev.name} 다음 배치 -20G`);}
  completeTurn(s);
 }
@@ -234,13 +241,14 @@ function completeTurn(s){const m=s.match,p=m.players[m.current];refill(s,p);p.sp
  // Never end a match before a few real decisions. Otherwise award to score leader on turn cap.
  const target=currentStage(s).target+(m.difficulty==='hard'?180:0);
  if(m.round>=8 && goldScore(m,m.current)>=target){finish(s,m.current,'목표 자산 도달');return;}
- if(m.current===1){if(m.round>=currentStage(s).maxRounds){const a=goldScore(m,0),b=goldScore(m,1);finish(s,a>=b?0:1,'턴 제한');return;}m.round++;}
- m.current=1-m.current;m.phase='prep';grantSalary(s);
+ const last=m.players.length-1;
+ if(m.current===last){if(m.round>=currentStage(s).maxRounds){finish(s,leaderOf(m),'턴 제한');return;}m.round++;}
+ m.current=(m.current+1)%m.players.length;m.phase='prep';grantSalary(s);
 }
 export function availableItem(s){const m=s.match,p=m.players[m.current];return p.hand.filter(id=>CARDS[id].kind==='item');}
 function discountValue(p,c){const unitCost=Math.max(0,...p.hand.filter(id=>CARDS[id]?.kind==='unit').map(id=>CARDS[id].cost));return Math.min(c.power,Math.max(0,unitCost-(p.placeCut||0)))-c.cost;}
 function bestSpell(s){
-  const m=s.match,p=m.players[m.current],foe=m.players[1-m.current];
+  const m=s.match,p=m.players[m.current],foe=m.players[foeOf(m,m.current)];
   let best=null,bestScore=24;
   for(const id of p.hand.filter(x=>legalSpell(s,x))){
     const c=CARDS[id];
@@ -255,7 +263,7 @@ function bestSpell(s){
   return best;
 }
 function sideSpell(s,who){
-  const m=s.match,p=m.players[who],foe=m.players[1-who];
+  const m=s.match,p=m.players[who],foe=m.players[foeOf(m,who)];
   if(p.spellUsed) return null;
   let best=null,bestScore=24;
   for(const id of p.hand){
@@ -273,7 +281,7 @@ function sideSpell(s,who){
 }
 /** Defender pick. Sees the attacking unit only, never the attacker's spell or item. */
 export function secretDefense(s,unitId){
-  const m=s.match,foe=m.players[1-m.current];
+  const m=s.match,def=m.tiles[m.players[m.current].pos].owner,foe=m.players[def];
   let open;
   try{open=combatPreview(s,unitId,null,null);}catch{return null;}
   const items=foe.hand.filter(id=>CARDS[id].kind==='item'&&foe.gold>=CARDS[id].cost);
@@ -289,11 +297,11 @@ export function secretDefense(s,unitId){
     const pick=cheapest(covers);
     if(pick) return pick;
   }
-  return sideSpell(s,1-m.current);
+  return sideSpell(s,def);
 }
 export function resolveStrike(s,unitId,atkSupport=null,defSupport=null){
-  const m=s.match,atk=m.current,def=1-atk,p=m.players[atk],foe=m.players[def],t=m.tiles[p.pos];
-  ensure((m.phase==='land'||m.phase==='strike')&&t.owner===def,'침략할 적 영토가 아닙니다.');
+  const m=s.match,atk=m.current,p=m.players[atk],t=m.tiles[p.pos],def=t.owner,foe=m.players[def];
+  ensure((m.phase==='land'||m.phase==='strike')&&def!==null&&def!==atk,'침략할 적 영토가 아닙니다.');
   const unit=CARDS[unitId];
   ensure(unit?.kind==='unit'&&p.hand.includes(unitId),'공격 유닛 손패 없음');
   const as=atkSupport?CARDS[atkSupport]:null,ds=defSupport?CARDS[defSupport]:null;
@@ -351,18 +359,18 @@ export function autoTurn(s,holdStrike=false){
       return {id,score:c.hp*1.1+c.atk*0.9+match*8-c.cost*0.08+(c.trait?rare:0)+(match&&c.trait?12:0)+(stage.style==='fortress'?c.hp*0.5:0)+(stage.style==='aggressive'?c.atk*0.4:0)};
     }).sort((a,b)=>b.score-a.score);
     // Stage 1 keeps cash back, so a first game still finds empty tiles.
-    const reserve=stage.id===1&&m.current===1?280:stage.style==='aggressive'?8:20;
+    const reserve=(stage.id===1&&m.current===1)||(stage.gentle&&m.current!==0)?(stage.gentle||280):stage.style==='aggressive'?8:20;
     const pick=ranked.length?CARDS[ranked[0].id]:null;
     const pay=pick?pick.cost-Math.min(pick.cost,p.placeCut||0):0;
     if(pick&&p.gold>=pay+reserve){place(s,ranked[0].id);return;}
   } else if(t.owner===m.current){
     const cost=45*t.level;
     // Level 1 stays crackable unless the owner is actually rich. Fortress still walls up later.
-    const reserve=(stage.id===1&&m.current===1?320:stage.style==='fortress'?(t.level===1?120:70):stage.style==='aggressive'?100:80)-(CARDS[t.cardId]?.trait?30:0);
+    const reserve=((stage.id===1&&m.current===1)||(stage.gentle&&m.current!==0)?(stage.gentle?stage.gentle+40:320):stage.style==='fortress'?(t.level===1?120:70):stage.style==='aggressive'?100:80)-(CARDS[t.cardId]?.trait?30:0);
     if(t.level<3&&p.gold>=cost+reserve){upgrade(s);return;}
   } else {
     const items=availableItem(s),units=p.hand.filter(id=>CARDS[id].kind==='unit');
-    const foe=goldScore(m,1-m.current);
+    const foe=Math.max(...m.players.filter(x=>x.id!==m.current).map(x=>goldScore(m,x.id)));
     const target=stage.target+(m.difficulty==='hard'?180:0);
     const urgent=foe>target-250||m.round>=stage.maxRounds-3;
     const fights=[];
@@ -379,13 +387,13 @@ export function autoTurn(s,holdStrike=false){
     fights.sort((a,b)=>b.score-a.score);
     if(fights.length){
       const {id,itemId}=fights[0];
-      if(holdStrike){m.phase='strike';m.strike={unitId:id,supportId:itemId||null};return;}
+      if(holdStrike&&t.owner===0){m.phase='strike';m.strike={unitId:id,supportId:itemId||null};return;}
       resolveStrike(s,id,itemId,secretDefense(s,id));return;
     }
   }
   pass(s);
 }
-export function aiTurn(s){ensure(s.match&&s.match.current===1&&!s.match.ended,'AI 턴이 아닙니다.');autoTurn(s,true);}
+export function aiTurn(s){ensure(s.match&&s.match.current!==0&&!s.match.ended,'AI 턴이 아닙니다.');autoTurn(s,true);}
 function rolledRarity(s,min){let x=rand(s),weights=RARITY_WEIGHTS[min];for(let i=0;i<weights.length;i++){x-=weights[i];if(x<0)return RARITIES[i];}return 'L';}
 export function acquire(s,id){ensure(!!CARDS[id],'유효하지 않은 카드');const count=s.collection[id]||0;
  if(count>=COPY_LIMIT){s.dust+=DUST_GAIN[CARDS[id].rarity];return {id,converted:true,dust:DUST_GAIN[CARDS[id].rarity]};}
@@ -427,7 +435,8 @@ function repeatTicket(wins){
  return n;
 }
 function finish(s,winner,reason){const m=s.match;ensure(m&&!m.ended,'이미 종료됨');m.ended=true;m.winner=winner;m.reason=reason;
- const scores=[goldScore(m,0),goldScore(m,1)];log(s,`[종료] ${winner===0?'승리':'패배'} · ${reason} · ${scores[0]} : ${scores[1]}`);
+ const scores=m.players.map(p=>goldScore(m,p.id));log(s,`[종료] ${winner===0?'승리':'패배'} · ${reason} · ${scores.join(' : ')}`);
+ if(m.stageId===TRIO_STAGE.id){s.trio=s.trio||{played:0,wins:0};s.trio.played++;if(winner===0)s.trio.wins++;return;} // trial: no packs, no rewards
  if(winner===0){const now=new Date();const day=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
    awardWin(s,m.stageId,m.difficulty,day);
  } else awardLoss(s,m.stageId);
@@ -532,3 +541,5 @@ export function loadSave(raw){const s=typeof raw==='string'?JSON.parse(raw):raw;
  return s;
 }
 
+
+export function trioOpen(s){return !!s.progress?.cleared?.includes(1);}

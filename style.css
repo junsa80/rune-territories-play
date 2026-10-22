@@ -270,3 +270,17 @@ body.ingame .hand .card-title b{display:inline;white-space:normal;word-break:kee
 .chapter-list{display:flex;flex-wrap:wrap;gap:6px}.chapter-list button{font-size:12px;padding:6px 8px}
 @media(max-width:720px){.unit-token{width:10px;height:10px;vertical-align:-1px}.sp-el{width:8px;height:8px;margin-right:1px}.die.sp-die{width:60px;height:60px}}
 @media(prefers-reduced-motion:reduce){.pawn.sp-pawn,.die.sp-die.rolling{animation:none}.sp-fx{display:none}}
+/* 3인 시범 (GrokBot): third side colour, summary line, compact header */
+.tile.owner-2{border:2px solid #b9e27a;box-shadow:inset 0 0 0 1px #b9e27a33}
+.pawn.sp-pawn.ai2{filter:drop-shadow(0 0 1px #b9e27a) drop-shadow(0 0 1px #000)}
+.score-ai2{color:#c8ec8e}
+.board-center .trio-score{font-size:13px;line-height:1.15}
+.trio-feed{margin:2px 0 4px;font-size:11px;color:#c9d6e2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trio .small{margin:4px 0 8px}
+.goal.trio-goal{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:0}
+.legend-ai2{color:#b9e27a}
+.trio-board .pawn.sp-pawn{width:20px}
+.trio-board .pawn.sp-pawn.active,.trio-board .pawn.sp-pawn.hop{width:26px}
+.trio-board .tile-pawns{gap:0;flex-wrap:nowrap}
+.trio-board .tile-pawns .pawn.sp-pawn+.pawn.sp-pawn{margin-left:-6px}
+.tile.owner-2{border-color:#b9e27a;background-image:linear-gradient(#3d5a2255,#3d5a2255)}

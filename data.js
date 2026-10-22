@@ -1,7 +1,8 @@
 // All cards in this prototype are original placeholders, not extracted from any commercial game.
 export const VERSION = '0.1.0';
-export const UI_BUILD = '0.1.43';
+export const UI_BUILD = '0.1.44';
 export const UPDATES = [
+  {date:'2026-10-22', title:'3인 시범', text:'1장을 깨면 캠페인에서 나·레오·미라 셋이 20칸 고리를 도는 3인 시범을 할 수 있습니다. 36턴, 목표 3800점, 끝나면 자산이 가장 많은 사람이 이깁니다. 나와 상관없는 AI끼리의 일은 한 줄로 요약하고, ▶▶ 버튼으로 빨리 넘깁니다. 보상은 없습니다.'},
   {date:'2026-10-22', title:'둘째 권·그림·소리', text:'7~18장 이야기(읽기 전용, 6장 클리어 뒤 차례로 열림)와 둘째 권 카드 14장(6장 보상·제작 풀)을 넣었습니다. 말·주사위·효과 그림과 새 효과음, 이음매 없는 배경음을 씁니다. 소리 설정은 그대로입니다.'},
   {date:'2026-10-22', title:'카드 역할 점검', text:'모래시계 벌레는 무속성 수비형(생명 7), 왕관 재는 화염 침략형(공격 14·생명 6)으로 구분했습니다. 현재 전투식에서 효력이 없는 반격·침략 생존 설명을 정리했습니다.'},
   {date:'2026-10-22', title:'덱 연구·한 장씩 개봉', text:'유닛 속성·주문·장비 수를 누르면 카드가 걸러집니다. 이름 붙인 덱 8개를 보관하고, 카드는 한 장씩 공개합니다. 보드에 이동 방향과 상세 보기를 넣었습니다.'},
@@ -117,6 +118,9 @@ export const STAGES = [
   {id:5,name:'이름 없는 칸',enemy:'측량사 린',style:'balanced',target:3200,maxRounds:26,board:{w:9,h:5},focus:'가로로 긴 24칸',keyCard:'flare-mason',enemyDeck:[...n('flare-mason',4),...n('measure-heron',4),...n('notch-boar',4),...n('lane-wisp',4),...n('seal-knight',2),...n('reed-lancer',4),...n('cinder-squire',4),...n('arc-bow',4),...n('cloud-stag',4),...n('spark-scout',4),...n('golden-path',2)]},
   {id:6,name:'마지막 고용',enemy:'고용주 세르',style:'aggressive',target:3800,maxRounds:28,board:{w:9,h:7},focus:'큰 직사각형 28칸',keyCard:'contract-titan',enemyDeck:[...n('contract-titan',2),...n('crown-ash',4),...n('payroll-crab',4),...n('gulf-moth',4),...n('spire-mole',4),...n('world-tree',1),...n('volcanic-lord',2),...n('tempest-giant',2),...n('double-oath',2),...n('tidal-oracle',1),...n('mirror-armor',2),...n('level-tithe',2),...n('star-drake',1),...n('forest-warden',2),...n('gate-breaker',2),...n('twin-crest',2),...n('arc-bow',3)]}
 ];
+// 3인 시범 (2026-10-22, GrokBot). 1:1 스테이지 목록과 목표 점수는 건드리지 않는 별도 설정. 보상 없음.
+export const TRIO_STAGE = {id:100,name:'3인 시범',enemy:'레오 · 미라',faces:['leo','mira'],style:'balanced',target:3800,maxRounds:36,board:{w:6,h:6},gentle:400,focus:'고리 20칸 · 셋이 한 고리',hook:'셋이 한 고리를 걷는다. 누가 먼저 무너지는지 보자.',
+  get enemyDecks(){return [STAGES[0].enemyDeck,STAGES[1].enemyDeck];}};
 export const HARD_HINTS = {
   1:{threat:'상대는 시작 골드와 매턴 수입이 더 많습니다.',goal:'저렴한 유닛으로 빈 땅을 먼저 확보하고, 여행 보급 같은 수입 주문으로 투자를 이어가세요.',tools:'저비용 유닛 · 수입 주문 · 석벽 방패'},
   2:{threat:'대지 유닛이 이웃과 연결되면 수비 생명이 높아집니다.',goal:'무리한 침략을 줄이고, 높은 공격 유닛에 공격 장비를 더해 수비 생명을 넘겨 보세요.',tools:'관문 파괴자 · 강철 칼날 · 높은 공격력'},

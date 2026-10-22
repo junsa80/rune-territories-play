@@ -1,22 +1,23 @@
-import {VERSION, UI_BUILD, HARD_HINTS, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.43';
-import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf, neighborBonus, tileBonus, storeDeck, restoreDeck} from './game.js?v=0.1.43';
-import {unlockAudio, sfx, toggleMute, muted} from './audio.js?v=0.1.43';
+import {VERSION, UI_BUILD, HARD_HINTS, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, TRIO_STAGE, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.44';
+import {stageById, trioOpen, newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf, neighborBonus, tileBonus, storeDeck, restoreDeck} from './game.js?v=0.1.44';
+import {unlockAudio, sfx, toggleMute, muted} from './audio.js?v=0.1.44';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
 let save, recoveryRaw=null, storageAvailable=true, initialRaw=null, droppedMatch=false;
 try{initialRaw=localStorage.getItem(KEY);}catch(e){storageAvailable=false;console.warn('Local storage unavailable:',e);}
 function matchLooksPlayable(m){
-  const stage=STAGES.find(st=>st.id===m?.stageId);
+  const stage=stageById(m?.stageId);
+  const np=isTrio(m)?3:2;
   const expect=stage?makeBoard(stage.board.w,stage.board.h).ring.length:0;
-  if(!m||m.ended||!Array.isArray(m.players)||m.players.length!==2||!Array.isArray(m.tiles)||m.tiles.length!==expect) return false;
+  if(!m||m.ended||!Array.isArray(m.players)||m.players.length!==np||!Array.isArray(m.tiles)||m.tiles.length!==expect) return false;
   if(!['normal','hard'].includes(m.difficulty)||!['prep','land','strike'].includes(m.phase)) return false;
   const known=ids=>Array.isArray(ids)&&ids.every(id=>!!CARDS[id]);
-  if(![0,1].includes(m.current)||!Number.isSafeInteger(m.round)||m.round<1||!Number.isSafeInteger(m.turns)||m.turns<0) return false;
+  if(!(Number.isInteger(m.current)&&m.current>=0&&m.current<np)||!Number.isSafeInteger(m.round)||m.round<1||!Number.isSafeInteger(m.turns)||m.turns<0) return false;
   for(const p of m.players){
     if(!p||!Number.isFinite(p.gold)||p.gold<0||!Number.isInteger(p.pos)||p.pos<0||p.pos>=expect||!known(p.hand)||!known(p.deck)||!known(p.discard)) return false;
   }
-  if(m.phase==='strike'&&(!m.strike||m.current!==1||!m.players[1].hand.includes(m.strike.unitId)||CARDS[m.strike.unitId]?.kind!=='unit'))return false;
-  return m.tiles.every((t,i)=>t&&t.index===i&&(t.owner===null||([0,1].includes(t.owner)&&CARDS[t.cardId]?.kind==='unit'&&[1,2,3].includes(t.level))));
+  if(m.phase==='strike'&&(!m.strike||m.current===0||!m.players[m.current].hand.includes(m.strike.unitId)||CARDS[m.strike.unitId]?.kind!=='unit'))return false;
+  return m.tiles.every((t,i)=>t&&t.index===i&&(t.owner===null||(Number.isInteger(t.owner)&&t.owner>=0&&t.owner<np&&CARDS[t.cardId]?.kind==='unit'&&[1,2,3].includes(t.level))));
 }
 function keepReward(r){
   if(!r||typeof r!=='object') return null;
@@ -43,6 +44,10 @@ function typeLabel(c){return c.kind==='unit'?ELEMENTS[c.element]:c.kind==='spell
 function kind(c){return c.kind==='unit'?'유닛':c.kind==='spell'?'주문':'아이템';}
 function withTrait(c){const t=c.trait&&TRAITS[c.trait];return t?`${c.desc} 특성 ${t.name}: ${t.text}`:c.desc;}
 const STAGE_FACE={1:'leo',2:'mira',3:'ar',4:'noel',5:'lin',6:'ser'};
+function isTrio(m){return !!m&&m.stageId===TRIO_STAGE.id;}
+function sideFace(m,id){return id===0?'player':isTrio(m)?TRIO_STAGE.faces[id-1]||'leo':STAGE_FACE[m.stageId]||'leo';}
+function sideName(m,id){return id===0?'나':isTrio(m)?(id===1?'레오':'미라'):'적';}
+let trioFF=false,trioFeed=[];
 // Sprites (art/sprites, generated originals). Rows of pawns.png follow PAWN_ROWS. @2x on dense screens.
 const PAWN_ROWS=['player','leo','mira','ar','noel','lin','ser','hael','on','ian'];
 const SP_SUF=(window.devicePixelRatio||1)>1.5?'@2x':'';
@@ -68,21 +73,21 @@ function artTag(src, alt, cls){return `<img loading="lazy" decoding="async" clas
 function cardMini(id,controls='',attrs='',chosen=false){const c=CARDS[id];const land=shownLand();const fit=c.kind==='unit'&&land&&!cornerAt(save.match,land.index)&&c.element===land.element&&c.element!=='neutral';
  return `<div class="mini-card el-${c.element} ${cardClass(c)}${fit?' fit':''}${chosen?' chosen':''}" ${attrs}>${artTag(cardSrc(id),c.name,'card-art')}<div class="card-title"><span class="el-chip ${c.kind==='unit'?c.element:c.kind}">${typeLabel(c)}</span>${badge(c.rarity)} <b>${esc(c.name)}</b></div><div class="small">${kind(c)} · ${c.cost}G${c.kind==='unit'?` · 공격 ${c.atk} / 생명 ${c.hp}`:''}${fit?' · <b class="fit-label">이 땅에 맞음</b>':''}</div><div class="card-desc">${esc(withTrait(c))}</div>${controls}</div>`;
 }
-function shownLand(){const m=save.match;if(!m||m.ended||fx)return null;if(m.phase==='strike')return m.tiles[m.players[1].pos];if(m.phase==='land'&&m.current===0)return m.tiles[m.players[0].pos];return null;}
+function shownLand(){const m=save.match;if(!m||m.ended||fx)return null;if(m.phase==='strike')return m.tiles[m.players[m.current].pos];if(m.phase==='land'&&m.current===0)return m.tiles[m.players[0].pos];return null;}
 function sideCard(id,who,support,hidden){const c=id&&CARDS[id];const sup=hidden?'<div class="back-card">장비 ?</div>':`<p class="small">지원 ${esc(support?CARDS[support].name:'없음')}</p>`;
  if(!c) return `<div class="side unknown"><b>${who}</b><p>유닛을 고르세요</p>${sup}</div>`;
  return `<div class="side el-${c.element} ${cardClass(c)} who-${who==='나'?'me':'foe'}"><div class="who">${who}</div>${artTag(cardSrc(c.id),c.name,'card-art')}<span class="el-chip ${c.kind==='unit'?c.element:c.kind}">${typeLabel(c)}</span><b>${esc(c.name)}</b><p class="small">공격 ${c.atk} · 생명 ${c.hp} · 기본</p>${sup}</div>`;
 }
 function battleSheet(m){const b=m.battleResult;if(!b)return '';
- const atkWho=b.attacker===0?'나':'적', defWho=b.attacker===0?'적':'나';
+ const atkWho=sideName(m,b.attacker), defWho=sideName(m,b.defender);
  const d=verdict(b,b.defender===0);
  const flow=b.success?`<p class="gold-note">통행료 없음. 수비는 반격 전에 쓰러지고 공격 몬스터가 칸을 가져갑니다.</p>`:(b.paid?`<p class="gold-note">${atkWho} → ${defWho} <b>${b.paid}G</b> 통행료. 수비는 살아 있습니다.</p>`:`<p class="gold-note">낼 골드가 없어 통행료 0. 수비는 살아 있습니다.</p>`);
- const spells=(b.spells||[]).map(x=>`<p class="spell-line">${x.who===0?'나':'적'} ${esc(x.name)} · ${esc(x.line)}</p>`).join('');
+ const spells=(b.spells||[]).map(x=>`<p class="spell-line">${sideName(m,x.who)} ${esc(x.name)} · ${esc(x.line)}</p>`).join('');
  return `<div class="sheet-back"><article class="sheet battle-sheet ${d.tone==='win'?'win flash-win':'lose flash-lose'}" data-action="noop"><p class="kicker">전투 결과</p><h1>${d.title}</h1><div class="versus">${sideCard(b.unitId,atkWho,b.atkSupport,false)}${sideCard(b.defenderId,defWho,b.defSupport,false)}</div><p class="clash">${d.line}</p>${bonusBlock(b,b.defender===0)}<p class="small">카드 그림의 공격·생명은 기본값입니다.</p>${spells}${flow}<div class="go">${btn('확인','battle-clear','','primary')}</div></article></div>`;
 }
 function nav(){return `<header class="topbar"><div><b>✦ 룬 영토</b><span class="sub"> Alpha ${VERSION} · UI ${UI_BUILD}</span> ${btn(muted()?'소리 끔':'소리 켬','mute','','quiet')}</div><div class="nav">${btn('캠페인','home','','navbtn')}${btn('덱·도감','collection','','navbtn')}${btn('로그','logs','','navbtn')}${btn('백업','backup','','navbtn')}</div></header>`;}
 function home(){const p=save.progress;return `<section class="intro"><h1>영토와 카드의 전술</h1><p>1인용 모바일 웹 프로토타입. <b>영토 선점·자원 투자·침략</b>을 선택하는 1:1 AI 캠페인입니다.</p><div class="pills"><span>🪙 재료 ${save.dust}</span><span>🎟️ 선택권 ${save.tickets}</span><span>🃏 덱 ${save.deck.length}/${DECK_SIZE}</span></div><div class="action-row">${btn('프롤로그','story-open','data-stage="0"','outline')}</div></section>${save.match?`<div class="notice">진행 중인 대전이 있습니다. ${btn('대전 계속','continue')}</div>`:''}
-${rewardHTML()}<section class="section"><h2>캠페인</h2><div class="stage-grid">${STAGES.map(st=>{const lock=st.id>p.highestUnlocked,won=p.wins[st.id]||0;const quote=lock?'':`<p class="story-quote">${esc(STORY.stages[st.id].intro.hook)}</p>`;return `<article class="stage"><div class="stage-head"><b>${st.id}. ${esc(st.name)}</b><span>${lock?'🔒':p.cleared.includes(st.id)?'✓ 클리어':'도전 가능'}</span></div><p>${esc(st.focus)} · 상대: ${esc(st.enemy)}</p>${quote}<p class="small">승리 ${won}회 · 목표 ${st.target}점 · 8턴부터 선도달 · ${st.maxRounds}턴 종료 · 일반 보상 팩 ${STAGE_PACKS[st.id]}장 · 선택권은 3승, 다음 5승, 다음 7승, 이후 10승마다 1장. 50승·100승은 2장 · 일일 첫 승리 보상 ×2</p><div class="stage-buttons">${btn('이야기','story-open',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('카드 확인','deckcheck',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('일반 대전','start',`data-stage="${st.id}" data-diff="normal" ${lock||!!save.match?'disabled':''}`)}${btn('어려움','start',`data-stage="${st.id}" data-diff="hard" ${lock||!p.cleared.includes(st.id)||!!save.match?'disabled':''}`,'outline')}</div></article>`;}).join('')}</div></section>${chapterHTML()}${updateHTML()}${achievementHTML()}<section class="section"><h2>알파 0.1 범위</h2><p class="small">현재는 <b>스테이지 ${STAGES.length}개 · 카드 ${CARD_LIST.length}종 · 덱 ${DECK_SIZE}장</b>입니다. 1장은 작은 사각형이고, 뒤 스테이지는 더 크며 가로·세로 모양이 달라집니다.</p></section>`;}
+${rewardHTML()}<section class="section"><h2>캠페인</h2><div class="stage-grid">${STAGES.map(st=>{const lock=st.id>p.highestUnlocked,won=p.wins[st.id]||0;const quote=lock?'':`<p class="story-quote">${esc(STORY.stages[st.id].intro.hook)}</p>`;return `<article class="stage"><div class="stage-head"><b>${st.id}. ${esc(st.name)}</b><span>${lock?'🔒':p.cleared.includes(st.id)?'✓ 클리어':'도전 가능'}</span></div><p>${esc(st.focus)} · 상대: ${esc(st.enemy)}</p>${quote}<p class="small">승리 ${won}회 · 목표 ${st.target}점 · 8턴부터 선도달 · ${st.maxRounds}턴 종료 · 일반 보상 팩 ${STAGE_PACKS[st.id]}장 · 선택권은 3승, 다음 5승, 다음 7승, 이후 10승마다 1장. 50승·100승은 2장 · 일일 첫 승리 보상 ×2</p><div class="stage-buttons">${btn('이야기','story-open',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('카드 확인','deckcheck',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('일반 대전','start',`data-stage="${st.id}" data-diff="normal" ${lock||!!save.match?'disabled':''}`)}${btn('어려움','start',`data-stage="${st.id}" data-diff="hard" ${lock||!p.cleared.includes(st.id)||!!save.match?'disabled':''}`,'outline')}</div></article>`;}).join('')}</div></section>${trioHTML()}${chapterHTML()}${updateHTML()}${achievementHTML()}<section class="section"><h2>알파 0.1 범위</h2><p class="small">현재는 <b>스테이지 ${STAGES.length}개 · 카드 ${CARD_LIST.length}종 · 덱 ${DECK_SIZE}장</b>입니다. 1장은 작은 사각형이고, 뒤 스테이지는 더 크며 가로·세로 모양이 달라집니다.</p></section>`;}
 function updateHTML(){return `<section class="section"><h2>업데이트</h2><div class="stage-grid">${UPDATES.map(u=>`<article class="stage"><div class="stage-head"><b>${esc(u.title)}</b><span>${esc(u.date)}</span></div><p class="small">${esc(u.text)}</p></article>`).join('')}</div></section>`;}
 function achievementHTML(){const book=save.achievements||{};const losses=save.losses||0;return `<section class="section"><h2>업적</h2><p class="small">누적 패배 ${losses}회. 항복은 세지 않습니다.</p><div class="stage-grid">${ACHIEVEMENTS.map(a=>{const v=book[a.id];const claimed=v==='claimed'||v===true;const ready=v==='ready';return `<article class="stage"><div class="stage-head"><b>${esc(a.name)}</b><span>${claimed?'받음':ready?'보상 대기':'미달성'}</span></div><p class="small">${esc(a.text)}</p>${ready?`<div class="stage-buttons">${btn('보상 받기','claim',`data-id="${a.id}"`,'primary')}</div>`:''}</article>`;}).join('')}</div></section>`;}
 function rewardCards(){const r=save.lastReward;return r?[(r.key||null),...(r.hotpack?.length?r.hotpack:r.pulled||[])].filter(v=>v&&CARDS[v.id]):[];}
@@ -118,8 +123,8 @@ function handAttrs(id){
     if(m.current===0&&m.phase==='land'){
       const t=getLandedTile(save);
       if(t.owner===null&&c.kind==='unit'&&placementOptions(save).includes(id)) return ['select-unit','place',id===selectedUnit];
-      if(t.owner===1&&c.kind==='unit') return ['select-unit','invade',id===selectedUnit];
-      if(t.owner===1&&((c.kind==='item'&&c.bonus!=='def')||c.kind==='spell')) return ['select-item','support',id===selectedItem];
+      if(t.owner!==null&&t.owner!==0&&c.kind==='unit') return ['select-unit','invade',id===selectedUnit];
+      if(t.owner!==null&&t.owner!==0&&((c.kind==='item'&&c.bonus!=='def')||c.kind==='spell')) return ['select-item','support',id===selectedItem];
     }
   }
   return ['inspect','view',false];
@@ -128,19 +133,17 @@ function shownPos(m,who){const n=m.tiles.length;if(fx&&fx.who===who) return (fx.
 function dieHTML(){if(!fx) return '';const idx=5+fx.face,pos=`${(idx%8/7*100).toFixed(3)}% ${Math.floor(idx/8)*100}%`;return `<div class="die sp-die ${fx.rolling?'rolling':'landed'}" data-face="${fx.face}" aria-hidden="true" style="--face:${pos}"><b class="die-face">${fx.face}</b></div>`;}
 function board(m){let cells=[];const n=m.tiles.length,acting=fx?.who??m.current;const focus=fx?(fx.from+fx.tick)%n:m.players[m.current].pos;for(let i=0;i<n;i++){const t=m.tiles[i],[r,c]=[t.r,t.c];
   const here=focus===i?' here':'';
-  const hop0=fx&&fx.who===0&&!fx.rolling&&shownPos(m,0)===i?' hop':'';
-  const hop1=fx&&fx.who===1&&!fx.rolling&&shownPos(m,1)===i?' hop':'';
-  const markers=(shownPos(m,0)===i?pawnSprite('player','me'+(acting===0?' active':'')+hop0,'나'):'')+(shownPos(m,1)===i?pawnSprite(STAGE_FACE[m.stageId]||'leo','ai'+(acting===1?' active':'')+hop1,'AI'):'');
+  const markers=m.players.map(pl=>{const id=pl.id;if(shownPos(m,id)!==i)return '';const hop=fx&&fx.who===id&&!fx.rolling?' hop':'';return pawnSprite(sideFace(m,id),(id===0?'me':'ai'+(id===2?' ai2':''))+(acting===id?' active':'')+hop,sideName(m,id));}).join('');
   const ev=cornerAt(m,i);
   const unit=t.cardId&&CARDS[t.cardId];
   const matched=unit&&unit.element===t.element&&unit.element!=='neutral';
   const struck=m.battleResult&&m.battleResult.tile===i?' struck':'';
-  const who=t.owner===0?'나':t.owner===1?'적':'';
+  const who=t.owner===null?'':isTrio(m)?sideName(m,t.owner).slice(0,1):t.owner===0?'나':'적';
   const label=ev?ev.name:(unit?unit.name:ELEMENTS[t.element]);
   const next=m.tiles[(i+1)%n],arrow=next.c>c?'→':next.r>r?'↓':next.c<c?'←':'↑';
   const distance=(i-focus+n)%n;const upcoming=!fx&&m.phase==='prep'&&distance>=1&&distance<=4;
-  cells.push(`<div data-action="map-tile" data-id="${i}" role="button" tabindex="0" aria-label="${i}번 ${esc(label)} ${who?who+' 영토':'빈 땅'}" class="tile el-${t.element}${upcoming?' upcoming':''}${ev?' event':''}${matched?' matched':''} owner-${t.owner===null?'none':t.owner}${here}${struck}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(label)}"><span class="tile-number">${i}</span><span class="tile-direction" aria-hidden="true">${arrow}</span><div class="tile-top"><span class="el-chip ${ev?'event':t.element}">${elementIcon(ev?'event':t.element)}${ev?'이벤트':ELEMENTS[t.element]}</span>${matched?`<span class="match-flag">생명 +${Math.max(1,t.level||1)}</span>`:''}${unit&&!matched&&unit.element!=='neutral'?`<span class="miss-flag">불일치</span>`:''}${who?`<span class="who">${who}</span>`:`<b>${t.level?'★'.repeat(t.level):''}</b>`}</div><div class="tile-unit">${unit&&unit.token?`<img class="unit-token" src="./art/tokens/${unit.id}.png" alt="" draggable="false">`:''}${esc(label)}${who&&t.level?` <i>Lv${t.level}</i>`:''}</div>${here?`<span class="here-flag">${acting?'적 위치':'내 위치'}</span>`:''}<div class="tile-pawns">${markers}</div></div>`);}
- return `<div class="board" style="grid-template-columns:repeat(${m.w},minmax(0,1fr));grid-template-rows:repeat(${m.h},minmax(0,1fr))" role="group" aria-label="${n}칸 시계 방향 영토 보드">${cells.join('')}<div class="board-center" style="grid-column:2/${m.w};grid-row:2/${m.h}">${artTag(faceSrc(acting?STAGE_FACE[m.stageId]||'leo':'player'), acting?'상대':'나','center-face')}<div class="route-hint">↻ 시계 방향으로 이동</div><div>라운드 <b>${m.round}/${STAGES[m.stageId-1].maxRounds}</b></div><div class="score-me">나 ${goldScore(m,0)}점</div><div class="score-ai">AI ${goldScore(m,1)}점</div><div class="small">목표 ${STAGES[m.stageId-1].target+(m.difficulty==='hard'?180:0)}점</div></div>${dieHTML()}</div><div class="map-legend"><span class="legend-me">■ 내 땅</span><span class="legend-foe">■ 적 땅</span><span>↻ 시계 방향</span><span>점선: 다음 1~4칸</span><span>칸을 눌러 상세</span></div>`;
+  cells.push(`<div data-action="map-tile" data-id="${i}" role="button" tabindex="0" aria-label="${i}번 ${esc(label)} ${who?who+' 영토':'빈 땅'}" class="tile el-${t.element}${upcoming?' upcoming':''}${ev?' event':''}${matched?' matched':''} owner-${t.owner===null?'none':t.owner}${here}${struck}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(label)}"><span class="tile-number">${i}</span><span class="tile-direction" aria-hidden="true">${arrow}</span><div class="tile-top"><span class="el-chip ${ev?'event':t.element}">${elementIcon(ev?'event':t.element)}${ev?'이벤트':ELEMENTS[t.element]}</span>${matched?`<span class="match-flag">생명 +${Math.max(1,t.level||1)}</span>`:''}${unit&&!matched&&unit.element!=='neutral'?`<span class="miss-flag">불일치</span>`:''}${who?`<span class="who">${who}</span>`:`<b>${t.level?'★'.repeat(t.level):''}</b>`}</div><div class="tile-unit">${unit&&unit.token?`<img class="unit-token" src="./art/tokens/${unit.id}.png" alt="" draggable="false">`:''}${esc(label)}${who&&t.level?` <i>Lv${t.level}</i>`:''}</div>${here?`<span class="here-flag">${acting?(isTrio(m)?sideName(m,acting)+' 위치':'적 위치'):'내 위치'}</span>`:''}<div class="tile-pawns">${markers}</div></div>`);}
+ return `<div class="board${isTrio(m)?' trio-board':''}" style="grid-template-columns:repeat(${m.w},minmax(0,1fr));grid-template-rows:repeat(${m.h},minmax(0,1fr))" role="group" aria-label="${n}칸 시계 방향 영토 보드">${cells.join('')}<div class="board-center" style="grid-column:2/${m.w};grid-row:2/${m.h}">${artTag(faceSrc(sideFace(m,acting)), acting?sideName(m,acting):'나','center-face')}<div class="route-hint">↻ 시계 방향으로 이동</div><div>라운드 <b>${m.round}/${stageById(m.stageId).maxRounds}</b></div>${isTrio(m)?m.players.map(pl=>`<div class="score-${pl.id===0?'me':pl.id===1?'ai':'ai2'} trio-score">${sideName(m,pl.id)} ${goldScore(m,pl.id)}점</div>`).join(''):`<div class="score-me">나 ${goldScore(m,0)}점</div><div class="score-ai">AI ${goldScore(m,1)}점</div>`}<div class="small">목표 ${stageById(m.stageId).target+(m.difficulty==='hard'?180:0)}점</div></div>${dieHTML()}</div><div class="map-legend">${isTrio(m)?'<span class="legend-me">■ 나</span><span class="legend-foe">■ 레오</span><span class="legend-ai2">■ 미라</span>':'<span class="legend-me">■ 내 땅</span><span class="legend-foe">■ 적 땅</span>'}<span>↻ 시계 방향</span><span>점선: 다음 1~4칸</span><span>칸을 눌러 상세</span></div>`;
 }
 function supportChoices(extra=0){
   const p=save.match.players[0], ids=[];
@@ -219,12 +222,12 @@ function defenseControls(m){
   const supports=supportChoices(0);
   if(selectedItem&&!supports.includes(selectedItem))selectedItem=null;
   const unit=CARDS[m.strike.unitId];
-  const tile=m.tiles[m.players[1].pos];
+  const tile=m.tiles[m.players[m.current].pos];
   return `<div class="prompt battle-prompt"><div class="versus">${sideCard(unit.id,'적',null,true)}${sideCard(tile.cardId,'나',selectedItem,false)}</div>${forecastHTML(openForecast(m),m)}<div class="go">${btn('수비 확정','answer','','primary')}</div><div class="choices">${supportButtons(supports)}</div></div>`;
 }
-function turnUI(m){const p=m.players[0];if(fx) return `<div class="prompt"><b>${fx.who?'상대':'나'} ${fx.rolling?'주사위를 굴리는 중':'이동 중'} · ${fx.face}</b></div>`;if(m.ended)return `<div class="prompt"><div class="go">${btn('캠페인으로','finish','','primary')}</div><div class="prompt-main"><b>${m.winner===0?'승리':'패배'}</b><p class="small">${esc(m.reason)} · ${goldScore(m,0)} : ${goldScore(m,1)}</p></div></div>`;
+function turnUI(m){const p=m.players[0];if(fx) return `<div class="prompt"><b>${fx.who?sideName(m,fx.who):'나'} ${fx.rolling?'주사위를 굴리는 중':'이동 중'} · ${fx.face}</b>${isTrio(m)&&fx.who?ffButton():''}</div>`;if(m.ended)return `<div class="prompt"><div class="go">${btn('캠페인으로','finish','','primary')}</div><div class="prompt-main"><b>${m.winner===0?'승리':'패배'}</b><p class="small">${esc(m.reason)} · ${m.players.map(pl=>(isTrio(m)?sideName(m,pl.id)+' ':'')+goldScore(m,pl.id)).join(' : ')}</p></div></div>`;
  if(m.phase==='strike') return defenseControls(m);
- if(m.current===1)return '<div class="prompt">AI가 판단 중입니다…</div>';
+ if(m.current!==0)return `<div class="prompt">${isTrio(m)?sideName(m,m.current):'AI'}가 판단 중입니다…${isTrio(m)?ffButton():''}</div>`;
  if(m.phase==='prep'){const spells=p.hand.filter(id=>legalSpell(save,id));const pay=m.salaryNotice?`<span class="salary">월급 +${m.salaryNotice}G</span>`:'';return `<div class="prompt"><div class="go">${btn('주사위 굴리기','roll','','primary')}</div><div class="prompt-main"><b>이동 준비</b>${pay}<p class="small">굴리면 고리를 따라 움직입니다. 빈 칸, 내 칸, 적 칸에 따라 할 일이 달라집니다.</p>${spells.length?`<div class="choices">${spells.map(id=>btn(`${CARDS[id].name} 보기`,'inspect',`data-id="${id}" data-intent="spell"`,'outline')).join('')}</div>`:''}</div></div>`;}
  const t=getLandedTile(save);if(cornerAt(m,t.index)){const ev=cornerAt(m,t.index);return `<div class="prompt"><div class="go">${btn('받기','pass','','primary')}</div><div class="prompt-main"><b>${esc(ev.name)}</b><p class="small">${esc(ev.text)}</p></div></div>`;}
  if(t.owner===null){const opts=unitPool('place');ensureSelected(opts);const c=selectedUnit&&CARDS[selectedUnit];
@@ -241,11 +244,12 @@ function turnUI(m){const p=m.players[0];if(fx) return `<div class="prompt"><b>${
 function actBanner(){if(!banner)return '';const a=banner;const title={spell:'주문',strike:'공격',blocked:'막힘',retreat:'퇴각'}[a.kind]||'효과';const art=a.id?artTag(cardSrc(a.id),a.name||title,'card-art'):'';const fxk={spell:'spell',strike:'capture',blocked:'guard',retreat:'gold'}[a.kind];return `<div class="act-banner kind-${a.kind} el-${a.element||'neutral'}">${fxSprite(fxk)}${a.kind==='strike'?fxSprite('hit'):''}<p class="kicker">${title}</p>${art}${a.name?`<b>${esc(a.name)}</b>`:''}<p>${esc(a.line||'')}</p></div>`;}
 function showBanner(act){if(!act)return;banner=act;if(bannerTimer)clearTimeout(bannerTimer);bannerTimer=setTimeout(()=>{banner=null;bannerTimer=null;preserveScroll=true;render();},1400);}
 let banner=null,bannerTimer=null;
-function goalLine(m){const st=STAGES[m.stageId-1];const target=st.target+(m.difficulty==='hard'?180:0);const mine=goldScore(m,0);return `<p class="goal">${m.round}턴 / ${st.maxRounds}턴 · 목표 ${target}점 · 지금 ${mine}점 · 남은 ${Math.max(0,target-mine)}점. 8턴 이후 먼저 도달하면 승리. 끝나면 높은 점수. 점수는 골드 + 땅마다 70 + 카드 가격 + 레벨×85.</p>`;}
+function ffButton(){return btn(trioFF?'▶ 보통 속도':'▶▶ AI 턴 빨리','trio-ff','','outline small-button');}
+function goalLine(m){const st=stageById(m.stageId);if(isTrio(m)){const target=st.target;return `<p class="goal trio-goal">${m.round}/${st.maxRounds}턴 · 목표 ${target}점 · 끝나면 최고 자산 승</p><p class="trio-feed">${trioFeed.length?esc(trioFeed[0]):'레오·미라끼리의 일은 여기 한 줄로 뜹니다.'}</p>`;}const target=st.target+(m.difficulty==='hard'?180:0);const mine=goldScore(m,0);return `<p class="goal">${m.round}턴 / ${st.maxRounds}턴 · 목표 ${target}점 · 지금 ${mine}점 · 남은 ${Math.max(0,target-mine)}점. 8턴 이후 먼저 도달하면 승리. 끝나면 높은 점수. 점수는 골드 + 땅마다 70 + 카드 가격 + 레벨×85.</p>`;}
 function game(){const m=save.match;if(!m)return home();const p=m.players[0];
- if(m.phase==='land'&&m.current===0&&!m.ended){const t=getLandedTile(save);if(t.owner===null)ensureSelected(unitPool('place'));else if(t.owner===1)ensureSelected(unitPool('invade'));}
+ if(m.phase==='land'&&m.current===0&&!m.ended){const t=getLandedTile(save);if(t.owner===null)ensureSelected(unitPool('place'));else if(t.owner!==0)ensureSelected(unitPool('invade'));}
  const cards=p.hand.map(id=>{const [act,intent,chosen]=handAttrs(id);return cardMini(id,'',`data-action="${act}" data-id="${id}" data-intent="${intent}"`,chosen);}).join('');
- return `<section class="game-area"><div class="game-header"><b>${esc(STAGES[m.stageId-1].name)} · ${m.difficulty==='hard'?'어려움':'일반'}</b><span>나 ${p.gold}G · ${goldScore(m,0)}점</span><span>상대 ${m.players[1].gold}G · ${goldScore(m,1)}점</span>${!m.ended?btn('항복','surrender','','quiet small-button'):''}</div>${goalLine(m)}${m.goldNote?`<p class="gold-note">${esc(m.goldNote)}</p>`:''}${actBanner()}<div class="game-layout"><div class="board-slot">${board(m)}</div><div class="game-side"><div class="dock">${turnUI(m)}</div><div class="hand"><b>손패 ${p.hand.length}</b><div class="hand-row">${cards||'<p>손패 없음</p>'}</div></div><details class="battle-log"><summary>전투 로그</summary><div>${save.log.slice(0,12).map(s=>`<p>${esc(s)}</p>`).join('')}</div></details></div></div></section>${battleSheet(m)}`;}
+ return `<section class="game-area"><div class="game-header"><b>${esc(stageById(m.stageId).name)}${isTrio(m)?'':` · ${m.difficulty==='hard'?'어려움':'일반'}`}</b><span>나 ${p.gold}G · ${goldScore(m,0)}점</span>${isTrio(m)?m.players.slice(1).map(pl=>`<span>${sideName(m,pl.id)} ${pl.gold}G</span>`).join(''):`<span>상대 ${m.players[1].gold}G · ${goldScore(m,1)}점</span>`}${!m.ended?btn('항복','surrender','','quiet small-button'):''}</div>${goalLine(m)}${m.goldNote?`<p class="gold-note">${esc(m.goldNote)}</p>`:''}${actBanner()}<div class="game-layout"><div class="board-slot">${board(m)}</div><div class="game-side"><div class="dock">${turnUI(m)}</div><div class="hand"><b>손패 ${p.hand.length}</b><div class="hand-row">${cards||'<p>손패 없음</p>'}</div></div><details class="battle-log"><summary>전투 로그</summary><div>${save.log.slice(0,12).map(s=>`<p>${esc(s)}</p>`).join('')}</div></details></div></div></section>${battleSheet(m)}`;}
 function hardHintHTML(id){const h=HARD_HINTS[id];return h?`<aside class="hard-hint"><b>어려움 도전 목표</b><p>${esc(h.threat)}</p><p>${esc(h.goal)}</p><p class="small">도움 되는 역할: ${esc(h.tools)}</p><p class="small">특정 카드가 필수인 정답 덱은 아닙니다.</p></aside>`:'';}
 function deckCheck(){const st=STAGES.find(x=>x.id===previewStage)||STAGES[0];const hook=STORY.stages[st.id].intro.hook;return `<section class="section"><h1>${previewDifficulty==='hard'?'어려움 · 출전 준비':'대전 전 카드 확인'}</h1><div class="boss-row">${artTag(faceSrc(STAGE_FACE[st.id]),st.enemy,'boss-face')}<div><b>${esc(st.name)}</b><p>상대 ${esc(st.enemy)} · ${esc(st.focus)}</p><p class="story-quote">${esc(hook)}</p><p class="small">내 덱의 그림과 능력을 확인한 다음 대전을 시작하세요.</p></div></div>${previewDifficulty==='hard'?hardHintHTML(st.id):''}${deckSummary()}<div class="action-row">${btn('덱 편집하러 가기','collection','','outline')}</div><div class="collection-grid">${save.deck.map(id=>cardMini(id, btn('크게 보기','inspect',`data-id="${id}" data-intent="view"`,'small-button outline'))).join('')}</div><div class="action-row">${btn(previewDifficulty==='hard'?'이 덱으로 어려움 도전':'이 덱으로 일반 대전','start',`data-stage="${st.id}" data-diff="${previewDifficulty}" data-ready="yes" ${save.match?'disabled':''}`,'primary')}${btn('이야기','story-open',`data-stage="${st.id}"`,'outline')}${btn('캠페인으로','home','','outline')}</div></section>`;}
 function storyPack(){
@@ -277,6 +281,7 @@ function chapterOpen(id){
   return !!(save.story.done&&save.story.done[id-1]);
 }
 const READ_CHAPTERS=Object.keys(STORY.stages).map(Number).filter(id=>id>STAGES.length).sort((a,b)=>a-b);
+function trioHTML(){const open=trioOpen(save),r=save.trio||{played:0,wins:0};return `<section class="section trio"><h2>3인 시범 <span class="small">선택</span></h2><p class="small">나 · 레오 · 미라가 20칸 고리 하나를 같이 돕니다. ${TRIO_STAGE.maxRounds}턴, 목표 ${TRIO_STAGE.target}점. 보상 없음, 이야기 순서와 상관없음. ${r.played?`기록 ${r.wins}승 / ${r.played}판`:''}</p>${btn(open?'3인 시범 시작':'🔒 1장 클리어 후','start',`data-stage="${TRIO_STAGE.id}" data-diff="normal" data-ready="yes" ${open&&!save.match?'':'disabled'}`,'outline')}</section>`;}
 function chapterHTML(){if(!READ_CHAPTERS.length)return '';const any=chapterOpen(READ_CHAPTERS[0]);return `<section class="section chapters"><h2>둘째 권 · 읽는 장</h2><p class="small">${any?'전투 없는 장입니다. 한 장을 다 읽으면 다음 장이 열립니다.':'6장을 클리어하면 7장부터 열립니다.'}</p><div class="chapter-list">${READ_CHAPTERS.map(id=>{const st=STORY.stages[id],open=chapterOpen(id),done=save.story.done&&save.story.done[id];return btn(`${open?'':'🔒 '}${esc(st.intro.kicker)}${done?' ✓':''}`,'story-open',`data-stage="${id}" data-part="chapter" ${open?'':'disabled'}`,'outline');}).join('')}</div></section>`;}
 function beginMatch(stageId,diff){startMatch(save,Number(stageId),diff);selectedUnit=null;selectedItem=null;sheet=null;story=null;page='game';sfx('tap');}
 function closeStory(finished=true){
@@ -371,7 +376,7 @@ function doAction(act,id,el){
  case 'sheet-close':sheet=null;break;
  case 'noop':return;
  case 'continue':page='game';break;
- case 'start':{const stageId=Number(el.dataset.stage),diff=el.dataset.diff;if(diff==='hard'&&el.dataset.ready!=='yes'){previewStage=stageId;previewDifficulty='hard';page='deckcheck';sheet=null;break;}if(!save.story.intro[stageId]){story={id:stageId,part:'intro',page:0,then:{act:'start',stage:stageId,diff}};page='story';sheet=null;sfx('tap');break;}beginMatch(stageId,diff);break;}
+ case 'start':{const stageId=Number(el.dataset.stage),diff=el.dataset.diff;if(diff==='hard'&&el.dataset.ready!=='yes'){previewStage=stageId;previewDifficulty='hard';page='deckcheck';sheet=null;break;}if(stageId!==TRIO_STAGE.id&&!save.story.intro[stageId]){story={id:stageId,part:'intro',page:0,then:{act:'start',stage:stageId,diff}};page='story';sheet=null;sfx('tap');break;}beginMatch(stageId,diff);break;}
  case 'story-open':{const n=Number(el.dataset.stage)||0;const part=el.dataset.part==='chapter'?'chapter':(n?'read':'prologue');if(part==='chapter'&&!chapterOpen(n))break;story=n?{id:n,part,page:0,then:null}:{id:'prologue',part:'prologue',page:0,then:null};page='story';sheet=null;sfx('tap');break;}
  case 'story-next':{const pack=storyPack();if(story&&pack&&story.page<pack.pages.length-1){story.page++;sfx('tap');break;}closeStory();sfx('tap');break;}
  case 'story-skip':closeStory(story.part!=='chapter');sfx('tap');break;
@@ -385,8 +390,9 @@ function doAction(act,id,el){
  case 'select-item':selectedItem=id||null;sheet=null;sfx('tap');break;
  case 'invade':if(id)selectedUnit=id;if(!selectedUnit)throw new Error('침략 유닛을 선택하세요.');{const ok=declareStrike(save,selectedUnit,selectedItem);sfx(ok?'hit':'fail');showBanner(save.match?.act);}selectedUnit=null;selectedItem=null;sheet=null;break;
  case 'answer':{const ok=answerStrike(save,selectedItem);sfx(ok?'hit':'fail');showBanner(save.match?.act);}selectedItem=null;sheet=null;break;
+ case 'trio-ff':trioFF=!trioFF;if(trioFF&&fx&&fx.who&&!fx.involved){clearFxTimer();fx=null;}break;
  case 'battle-clear':if(save.match)save.match.battleResult=null;break;
- case 'finish':{const won=save.match?.winner===0;const stageId=save.match?.stageId;endMatch(save);sheet=null;if(won&&stageId&&!save.story.outro[stageId]){story={id:stageId,part:'outro',page:0,then:null};page='story';sfx('win');break;}page=rewardCards().length?'rewards':'home';sfx(won?'win':'lose');break;}
+ case 'finish':{const won=save.match?.winner===0;const stageId=save.match?.stageId;endMatch(save);sheet=null;if(stageId===TRIO_STAGE.id){trioFeed=[];page='home';sfx(won?'win':'lose');break;}if(won&&stageId&&!save.story.outro[stageId]){story={id:stageId,part:'outro',page:0,then:null};page='story';sfx('win');break;}page=rewardCards().length?'rewards':'home';sfx(won?'win':'lose');break;}
  case 'surrender':if(confirm('항복하면 보상을 받지 못합니다. 대전을 종료할까요?')){surrender(save);page='home';}break;
  case 'deck-plus':editDeck(save,id,1);break;
  case 'deck-minus':editDeck(save,id,-1);break;
@@ -401,21 +407,21 @@ const MUTATING=new Set(['spell','roll','place','upgrade','pass','invade','answer
 root.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('.tile[data-action]')){e.preventDefault();doAction('map-tile',e.target.dataset.id,e.target);}});
 let actLock=0, aiTimer=null, audioReady=false, heardSalary=-1, fx=null, fxTimer=null;
 function clearFxTimer(){if(fxTimer){clearTimeout(fxTimer);fxTimer=null;}}
-function startTravel(who,from,steps){
+function startTravel(who,from,steps,fast=false){
   clearFxTimer();
   if(!(steps>=1&&steps<=4)){fx=null;preserveScroll=true;render();return;}
-  fx={who,from,steps,tick:0,face:1,rolling:true,until:Date.now()+1600+steps*380};
+  fx={who,from,steps,tick:0,face:1,rolling:true,fast,until:Date.now()+(fast?700+steps*180:1600+steps*380)};
   preserveScroll=true;render();sfx('dice');
   let spins=0;
   const spin=()=>{
     if(!fx||!fx.rolling) return;
     spins++;
-    fx.face=spins>=7?steps:1+Math.floor(Math.random()*4);
+    fx.face=spins>=(fx.fast?3:7)?steps:1+Math.floor(Math.random()*4);
     const die=document.querySelector('.die'),face=document.querySelector('.die-face'),label=document.querySelector('.prompt b');
     if(face) face.textContent=String(fx.face);
     if(die) die.dataset.face=String(fx.face);
-    if(label) label.textContent=`${fx.who?'상대':'나'} 주사위를 굴리는 중 · ${fx.face}`;
-    if(spins>=7){fx.rolling=false;fx.face=steps;if(die){die.classList.remove('rolling');die.classList.add('landed');}if(face) face.textContent=String(steps);fxTimer=setTimeout(hop,360);return;}
+    if(label) label.textContent=`${fx.who?sideName(save.match,fx.who):'나'} 주사위를 굴리는 중 · ${fx.face}`;
+    if(spins>=(fx.fast?3:7)){fx.rolling=false;fx.face=steps;if(die){die.classList.remove('rolling');die.classList.add('landed');}if(face) face.textContent=String(steps);fxTimer=setTimeout(hop,fx.fast?160:360);return;}
     fxTimer=setTimeout(spin,70);
   };
   fxTimer=setTimeout(spin,70);
@@ -425,23 +431,32 @@ function hop(){
     if(!fx) return;
     if(fx.tick>=fx.steps){fx=null;preserveScroll=true;render();return;}
     fx.tick++;sfx('step');preserveScroll=true;render();
-    fxTimer=setTimeout(hop,320);
+    fxTimer=setTimeout(hop,fx.fast?140:320);
   }catch(e){clearFxTimer();fx=null;status=e.message;preserveScroll=true;render();}
 }
 function cueSalary(){const m=save.match;if(fx||!m||m.ended||m.current!==0||!m.salaryNotice)return;if(heardSalary===m.turns)return;heardSalary=m.turns;sfx('salary');}
 function queueAi(){
-  if(fx||aiTimer||!save.match||save.match.current!==1||save.match.ended||save.match.phase==='strike'||save.match.battleResult) return;
+  if(fx||aiTimer||!save.match||save.match.current===0||save.match.ended||save.match.phase==='strike'||save.match.battleResult) return;
   aiTimer=setTimeout(()=>{
     aiTimer=null;
-    if(fx||!save.match||save.match.current!==1||save.match.ended) return;
-    const from=save.match.players[1].pos, rolled=save.match.phase==='prep';
-    try{aiTurn(save);status='';if(save.match?.act)showBanner(save.match.act);}catch(e){status=`AI 오류: ${e.message}`;preserveScroll=true;render();return;}
-    const steps=rolled?(save.match.players[1].pos-from+save.match.tiles.length)%save.match.tiles.length:0;
-    if(steps>=1&&steps<=4) startTravel(1,from,steps);
+    const m=save.match;
+    if(fx||!m||m.current===0||m.ended) return;
+    const cur=m.current,from=m.players[cur].pos,rolled=m.phase==='prep',trio=isTrio(m);
+    const g0=m.players[0].gold,own0=m.tiles.map(t=>t.owner===0).join(),prev=save.log.slice(0,3);
+    try{aiTurn(save);status='';}catch(e){status=`AI 오류: ${e.message}`;preserveScroll=true;render();return;}
+    const now=save.match,steps=rolled?(now.players[cur].pos-from+now.tiles.length)%now.tiles.length:0;
+    const b=now.battleResult;
+    // 3p: full animation only when my land, my gold or my pawn is involved. Otherwise one summary line.
+    const involved=!trio||now.phase==='strike'||(b&&(b.attacker===0||b.defender===0))||now.players[0].gold!==g0||now.tiles.map(t=>t.owner===0).join()!==own0||now.players[cur].pos===now.players[0].pos;
+    if(trio){let k=0;while(k<save.log.length&&!(save.log[k]===prev[0]&&save.log[k+1]===prev[1]&&save.log[k+2]===prev[2]))k++;const fresh=save.log.slice(0,k);const brief=fresh.filter(l=>!l.startsWith('[월급]')&&!/주사위 \d/.test(l)).reverse().map(l=>l.replace(/^\[(AI|적)\]\s*/,'')).join(' · ');trioFeed=[`${sideName(now,cur)}: ${brief||'이동만'}`];}
+    if(!involved){now.battleResult=null;now.act=null;}
+    else if(now.act)showBanner(now.act);
+    if(steps>=1&&steps<=4&&(involved||!trioFF)){startTravel(cur,from,steps,!involved);if(fx)fx.involved=involved;}
     else {preserveScroll=true;render();}
-  },90);
+  },trio()&&trioFF?40:90);
+  function trio(){return isTrio(save.match);}
 }
-root.addEventListener('click',e=>{const first=!audioReady;unlockAudio();audioReady=true;if(first){heardSalary=-1;cueSalary();}const el=e.target.closest('[data-action]');if(!el||el.disabled)return;const act=el.dataset.action;if(fx&&fx.until&&Date.now()>fx.until){clearFxTimer();fx=null;}if(fx&&act!=='mute')return;if(MUTATING.has(act)&&Date.now()<actLock)return;if(MUTATING.has(act))actLock=Date.now()+320;try{status='';doAction(act,el.dataset.id,el);}catch(err){status=err.message;render();}});
+root.addEventListener('click',e=>{const first=!audioReady;unlockAudio();audioReady=true;if(first){heardSalary=-1;cueSalary();}const el=e.target.closest('[data-action]');if(!el||el.disabled)return;const act=el.dataset.action;if(fx&&fx.until&&Date.now()>fx.until){clearFxTimer();fx=null;}if(fx&&act!=='mute'&&act!=='trio-ff')return;if(MUTATING.has(act)&&Date.now()<actLock)return;if(MUTATING.has(act))actLock=Date.now()+320;try{status='';doAction(act,el.dataset.id,el);}catch(err){status=err.message;render();}});
 root.addEventListener('change',async e=>{if(e.target.id==='collection-sort'){collectionSort=e.target.value;preserveScroll=true;render();return;}if(e.target.id!=='import-file')return;const file=e.target.files?.[0];if(!file)return;
  try{const next=loadSave(await file.text());save=next;sheet=null;story=null;selectedUnit=null;selectedItem=null;page='home';status='백업에서 진행 기록을 복구했습니다.';}catch(err){status=`복원 취소: ${err.message}`;}render();});
 render();
