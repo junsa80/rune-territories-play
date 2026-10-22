@@ -96,7 +96,7 @@ export function placementOptions(s,who=s.match?.current){const m=s.match,p=m.pla
  if(m.phase!=='land'||cornerAt(m,t.index)||t.owner!==null)return [];
  return p.hand.filter(id=>{const c=CARDS[id];return c.kind==='unit'&&c.cost-Math.min(c.cost,p.placeCut||0)<=p.gold;});
 }
-export function tileBonus(t,c) {return c.element!=='neutral'&&t.element===c.element?3:0;}
+export function tileBonus(t,c){if(!c||c.element==='neutral'||t.element!==c.element)return 0;return Math.max(1,t.level||1);}
 function sides(m,t){const n=m.tiles.length;return [m.tiles[(t.index+n-1)%n], m.tiles[(t.index+1)%n]];}
 function cornerAt(m,index){return m.corners?.find(c=>c.index===index)||null;}
 export function neighborBonus(m,t,owner) {return sides(m,t).filter(x=>x.owner===owner&&x.element===t.element&&t.element!=='neutral').length*2;}
@@ -166,15 +166,15 @@ export function combatPreview(s,attackerId,itemId=null,defItemId=null){const m=s
  if(defItem){ensure(defItem.kind==='item'&&m.players[t.owner].hand.includes(defItemId),'수비 아이템 없음');}
  const am=attackMods(a,t), dm=defendMods(m,t), im=itemMods(item,a,t), dim=defendItemMods(defItem,d,t);
  const tileHp=tileBonus(t,d);
- const grow=(t.level-1)*(d.grow??3), neigh=neighborBonus(m,t,t.owner), aura=auraHP(m,t);
+ const neigh=neighborBonus(m,t,t.owner), aura=auraHP(m,t);
  const attack=a.atk+am.atk+im.atk;
- const defenderHP=d.hp+tileHp+grow+neigh+dm.hp+aura+dim.hp;
+ const defenderHP=d.hp+tileHp+neigh+dm.hp+aura+dim.hp;
  const defense=a.hp+am.def+im.def;
  const retaliation=d.atk+dm.ret+dim.ret;
  const killed=attack>=defenderHP;
  const parts={
   atk:[['기본',a.atk],['특성',am.atk],['장비',im.atk]],
-  hp:[['기본',d.hp],['지형',tileHp],['레벨',grow],['연속',neigh],['특성',dm.hp],['이웃',aura],['장비',dim.hp]],
+  hp:[['기본',d.hp],['지형',tileHp],['연속',neigh],['특성',dm.hp],['이웃',aura],['장비',dim.hp]],
   body:[['기본',a.hp],['특성',am.def],['장비',im.def]],
   ret:[['기본',d.atk],['특성',dm.ret],['장비',dim.ret]]
  };

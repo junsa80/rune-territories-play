@@ -1,5 +1,5 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.39';
-import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf} from './game.js?v=0.1.39';
+import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.40';
+import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf} from './game.js?v=0.1.40';
 import {unlockAudio, sfx, toggleMute, muted} from './audio.js';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
@@ -107,7 +107,7 @@ function board(m){let cells=[];const n=m.tiles.length;const focus=fx?(fx.from+fx
   const struck=m.battleResult&&m.battleResult.tile===i?' struck':'';
   const who=t.owner===0?'나':t.owner===1?'적':'';
   const label=ev?ev.name:(unit?unit.name:ELEMENTS[t.element]);
-  cells.push(`<div class="tile el-${t.element}${ev?' event':''}${matched?' matched':''} owner-${t.owner===null?'none':t.owner}${here}${struck}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(label)}"><div class="tile-top"><span class="el-chip ${ev?'event':t.element}">${ev?'이벤트':ELEMENTS[t.element]}</span>${matched?'<span class="match-flag">생명 +3</span>':''}${unit&&!matched&&unit.element!=='neutral'?`<span class="miss-flag">불일치</span>`:''}${who?`<span class="who">${who}</span>`:`<b>${t.level?'★'.repeat(t.level):''}</b>`}</div><div class="tile-unit">${esc(label)}${who&&t.level?` <i>Lv${t.level}</i>`:''}</div>${here?'<span class="here-flag">현재</span>':''}<div class="tile-pawns">${markers}</div></div>`);}
+  cells.push(`<div class="tile el-${t.element}${ev?' event':''}${matched?' matched':''} owner-${t.owner===null?'none':t.owner}${here}${struck}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(label)}"><div class="tile-top"><span class="el-chip ${ev?'event':t.element}">${ev?'이벤트':ELEMENTS[t.element]}</span>${matched?`<span class="match-flag">생명 +${Math.max(1,t.level||1)}</span>`:''}${unit&&!matched&&unit.element!=='neutral'?`<span class="miss-flag">불일치</span>`:''}${who?`<span class="who">${who}</span>`:`<b>${t.level?'★'.repeat(t.level):''}</b>`}</div><div class="tile-unit">${esc(label)}${who&&t.level?` <i>Lv${t.level}</i>`:''}</div>${here?'<span class="here-flag">현재</span>':''}<div class="tile-pawns">${markers}</div></div>`);}
  return `<div class="board" style="grid-template-columns:repeat(${m.w},minmax(0,1fr));grid-template-rows:repeat(${m.h},minmax(0,1fr))" role="img" aria-label="${n}칸 순환형 영토 보드">${cells.join('')}<div class="board-center" style="grid-column:2/${m.w};grid-row:2/${m.h}">${artTag(faceSrc(m.current?STAGE_FACE[m.stageId]||'leo':'player'), m.current?'상대':'나','center-face')}<div>라운드 <b>${m.round}/${STAGES[m.stageId-1].maxRounds}</b></div><div class="score-me">나 ${goldScore(m,0)}점</div><div class="score-ai">AI ${goldScore(m,1)}점</div><div class="small">목표 ${STAGES[m.stageId-1].target+(m.difficulty==='hard'?180:0)}점</div></div>${dieHTML()}</div>`;
 }
 function supportChoices(extra=0){
@@ -152,7 +152,7 @@ function bonusBlock(v,defending){
 function forecastHTML(v,m){
   if(!v) return '<p class="small">유닛을 고르면 상대 장비를 빼고 계산한 예측이 나옵니다.</p>';
   const d=verdict(v,m.phase==='strike');
-  return `<p class="forecast ${d.tone}"><b>${d.title}</b> ${d.line}</p>${bonusBlock(v,m.phase==='strike')}<p class="small">공격이 먼저입니다. 수비 생명이 0이 되면 반격은 없습니다. 지형 일치는 생명만 +3. 상대 장비는 가려져 있습니다.</p>`;
+  return `<p class="forecast ${d.tone}"><b>${d.title}</b> ${d.line}</p>${bonusBlock(v,m.phase==='strike')}<p class="small">공격이 먼저입니다. 수비 생명이 0이면 반격은 없습니다. 지형 일치는 생명 +레벨. 상대 장비는 가려져 있습니다.</p>`;
 }
 function openForecast(m){
   try{
@@ -196,12 +196,12 @@ function turnUI(m){const p=m.players[0];if(fx) return `<div class="prompt"><b>${
  if(t.owner===null){const opts=unitPool('place');ensureSelected(opts);const c=selectedUnit&&CARDS[selectedUnit];
   const fits=opts.filter(id=>CARDS[id].element===t.element&&CARDS[id].element!=='neutral');
   const go=c?`${btn('배치','place',`data-id="${c.id}"`,'primary')}${opts.length>1?btn('다음 유닛','next-unit','data-pool="place"','outline'):''}${btn('안 둠','pass','','outline')}`:btn('안 둠','pass','','primary');
-  const coach=fits.length?`이 땅은 ${ELEMENTS[t.element]}입니다. 점 있는 카드는 이 칸에서 생명 +3입니다.`:`손패에 맞는 속성이 없습니다. 두면 생명 보너스가 없습니다.`;
+  const coach=fits.length?`이 땅은 ${ELEMENTS[t.element]}입니다. 맞으면 생명 +1. 레벨 2는 +2, 레벨 3은 +3입니다.`:`손패에 맞는 속성이 없습니다. 두면 생명 보너스가 없습니다.`;
   return `<div class="prompt"><div class="go">${go}</div><div class="prompt-main"><b><span class="el-chip ${t.element}">${ELEMENTS[t.element]} 땅</span></b><p class="small">${coach}</p>${c?`<p class="small">선택 <b>${esc(c.name)}</b> · ${c.cost}G · <span class="el-chip ${c.element}">${ELEMENTS[c.element]}</span> 공격 ${c.atk} / 생명 ${c.hp}${c.element===t.element&&c.element!=='neutral'?' · 속성 맞음':''}</p>`:'<p class="small">배치할 손패 유닛이 없습니다.</p>'}<div class="choices unit-choices">${opts.map(id=>btn(`${CARDS[id].element===t.element&&CARDS[id].element!=='neutral'?'● ':''}${CARDS[id].name}`,'select-unit',`data-id="${id}"`,id===selectedUnit?'chosen':'')).join('')}</div></div></div>`;}
  if(t.owner===0){const cost=45*t.level;const c=CARDS[t.cardId];const up=t.level<3&&p.gold>=cost;const comfort=p.gold>=cost+50;
   const upBtn=btn(`강화 ${cost}G`,'upgrade',`${up?'':'disabled'}`,comfort?'primary':'outline');
   const skipBtn=btn('넘김','pass','',comfort?'outline':'primary');
-  return `<div class="prompt"><div class="go">${comfort?upBtn+skipBtn:skipBtn+upBtn}</div><div class="prompt-main"><b>내 땅 · <span class="el-chip ${c.element}">${ELEMENTS[c.element]}</span> ${esc(c.name)} Lv.${t.level}</b><p class="small">강화하면 생명이 ${c.grow??3} 오릅니다. 비용 ${cost}G. 돈이 빠듯하면 넘기세요.</p></div></div>`;}
+  return `<div class="prompt"><div class="go">${comfort?upBtn+skipBtn:skipBtn+upBtn}</div><div class="prompt-main"><b>내 땅 · <span class="el-chip ${c.element}">${ELEMENTS[c.element]}</span> ${esc(c.name)} Lv.${t.level}</b><p class="small">카드 생명은 ${c.hp} 그대로입니다. 속성이 맞으면 생명 보너스가 +${t.level}에서 +${Math.min(3,t.level+1)}이 됩니다. 통행료와 점수도 오릅니다.</p></div></div>`;}
  return fightControls(m);
 }
 function actBanner(){if(!banner)return '';const a=banner;const title={spell:'주문',strike:'공격',blocked:'막힘',retreat:'퇴각'}[a.kind]||'효과';const art=a.id?artTag(cardSrc(a.id),a.name||title,'card-art'):'';return `<div class="act-banner kind-${a.kind} el-${a.element||'neutral'}"><p class="kicker">${title}</p>${art}${a.name?`<b>${esc(a.name)}</b>`:''}<p>${esc(a.line||'')}</p></div>`;}
@@ -262,7 +262,7 @@ function sheetHTML(){if(!sheet||!CARDS[sheet.id])return '';const c=CARDS[sheet.i
  else if(sheet.intent==='spell') play=btn('확인하고 주문','spell',`data-id="${c.id}"`,'primary');
  else if(sheet.intent==='invade') play=btn('이 유닛으로 확정','invade',`data-id="${c.id}"`,'primary');
  else if(sheet.intent==='support'||sheet.intent==='item') play=btn('이 지원을 고름','select-item',`data-id="${c.id}"`,'primary');
- return `<div class="sheet-back" data-action="sheet-close"><article class="sheet" data-action="noop">${artTag(cardSrc(c.id),c.name,'sheet-art')}<div class="card-title">${badge(c.rarity)} <b>${esc(c.name)}</b></div><p>${ELEMENTS[c.element]} · ${kind(c)} · ${c.cost}G${c.kind==='unit'?` · 공격 ${c.atk} / 생명 ${c.hp} · 강화할 때마다 생명 +${c.grow??3}`:''}</p><p>${esc(withTrait(c))}</p><div class="action-row">${play}${btn('닫기','sheet-close','','outline')}</div></article></div>`;}
+ return `<div class="sheet-back" data-action="sheet-close"><article class="sheet" data-action="noop">${artTag(cardSrc(c.id),c.name,'sheet-art')}<div class="card-title">${badge(c.rarity)} <b>${esc(c.name)}</b></div><p>${ELEMENTS[c.element]} · ${kind(c)} · ${c.cost}G${c.kind==='unit'?` · 공격 ${c.atk} / 생명 ${c.hp} · 땅이 맞으면 생명 +레벨`:''}</p><p>${esc(withTrait(c))}</p><div class="action-row">${play}${btn('닫기','sheet-close','','outline')}</div></article></div>`;}
 function deckSummary(){
   const deck={fire:0,water:0,earth:0,air:0,neutral:0}, own={...deck}, kind={unit:0,spell:0,item:0};
   for(const id of save.deck){const c=CARDS[id]; if(!c) continue; deck[c.element]++; kind[c.kind]++;}
