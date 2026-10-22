@@ -262,8 +262,7 @@ body.ingame .hand .card-title b{display:inline;white-space:normal;word-break:kee
 @keyframes spHop{from{background-position:44.444% var(--row)}to{background-position:111.111% var(--row)}}
 .die.sp-die{background:var(--sp-dice) var(--face)/800% 200% no-repeat;box-shadow:none;border-radius:0;width:72px;height:72px;filter:drop-shadow(0 8px 14px #000c)}
 .die.sp-die .die-face{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-.die.sp-die.rolling{animation:spRoll .43s steps(6,end) infinite}
-@keyframes spRoll{from{background-position:0% 0%}to{background-position:85.714% 0%}}
+.die.sp-die.rolling{animation:dieShake .42s linear infinite}
 .sp-fx{position:absolute;left:50%;top:38%;width:96px;height:96px;margin:-48px 0 0 -48px;background:var(--sp-fx) 0 0/800% 700% no-repeat;pointer-events:none;z-index:2}
 .sp-el{display:inline-block;width:11px;height:11px;margin-right:2px;vertical-align:-2px;background:var(--sp-elements) 0 0/600% 100% no-repeat}
 .unit-token{width:14px;height:14px;border-radius:50%;vertical-align:-3px;margin-right:2px}
@@ -293,3 +292,4 @@ body.ingame .hand .card-title b{display:inline;white-space:normal;word-break:kee
 .trio-board.p4 .board-center .trio-score{font-size:12px;line-height:1.1}
 @media(max-width:720px){.map-legend.legend-p4{font-size:9px;gap:4px 6px;line-height:1.2;margin-top:2px}}
 .prompt .trial-reward{color:#ffe09a;font-weight:600}
+

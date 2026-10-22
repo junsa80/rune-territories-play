@@ -1,6 +1,6 @@
-import {VERSION, UI_BUILD, HARD_HINTS, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, TRIO_STAGE, TRIALS, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES, trialReward} from './data.js?v=0.1.45';
-import {stageById, trioOpen, trialOpen, newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf, neighborBonus, tileBonus, storeDeck, restoreDeck} from './game.js?v=0.1.45';
-import {unlockAudio, sfx, toggleMute, muted} from './audio.js?v=0.1.45';
+import {VERSION, UI_BUILD, HARD_HINTS, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, TRIO_STAGE, TRIALS, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES, trialReward} from './data.js?v=0.1.46';
+import {stageById, trioOpen, trialOpen, newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf, neighborBonus, tileBonus, storeDeck, restoreDeck} from './game.js?v=0.1.46';
+import {unlockAudio, sfx, toggleMute, muted} from './audio.js?v=0.1.46';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
 let save, recoveryRaw=null, storageAvailable=true, initialRaw=null, droppedMatch=false;
@@ -130,7 +130,9 @@ function handAttrs(id){
   return ['inspect','view',false];
 }
 function shownPos(m,who){const n=m.tiles.length;if(fx&&fx.who===who) return (fx.from+fx.tick)%n; return m.players[who].pos;}
-function dieHTML(){if(!fx) return '';const idx=5+fx.face,pos=`${(idx%8/7*100).toFixed(3)}% ${Math.floor(idx/8)*100}%`;return `<div class="die sp-die ${fx.rolling?'rolling':'landed'}" data-face="${fx.face}" aria-hidden="true" style="--face:${pos}"><b class="die-face">${fx.face}</b></div>`;}
+function diePosition(face){const idx=5+face;return `${(idx%8/7*100).toFixed(3)}% ${Math.floor(idx/8)*100}%`;}
+function travelLabel(){return `${fx.who?sideName(save.match,fx.who):'나'} ${fx.rolling?'주사위를 굴리는 중 · 1~4':`주사위 ${fx.steps} · ${fx.steps}칸 이동`}`;}
+function dieHTML(){if(!fx) return '';return `<div class="die sp-die ${fx.rolling?'rolling':'landed'}" data-face="${fx.face}" aria-hidden="true" style="--face:${diePosition(fx.face)}"><b class="die-face">${fx.face}</b></div>`;}
 function board(m){let cells=[];const n=m.tiles.length,acting=fx?.who??m.current;const focus=fx?(fx.from+fx.tick)%n:m.players[m.current].pos;for(let i=0;i<n;i++){const t=m.tiles[i],[r,c]=[t.r,t.c];
   const here=focus===i?' here':'';
   const markers=m.players.map(pl=>{const id=pl.id;if(shownPos(m,id)!==i)return '';const hop=fx&&fx.who===id&&!fx.rolling?' hop':'';return pawnSprite(sideFace(m,id),(id===0?'me':'ai'+(id>=2?' ai'+id:''))+(acting===id?' active':'')+hop,sideName(m,id));}).join('');
@@ -225,7 +227,7 @@ function defenseControls(m){
   const tile=m.tiles[m.players[m.current].pos];
   return `<div class="prompt battle-prompt"><div class="versus">${sideCard(unit.id,'적',null,true)}${sideCard(tile.cardId,'나',selectedItem,false)}</div>${forecastHTML(openForecast(m),m)}<div class="go">${btn('수비 확정','answer','','primary')}</div><div class="choices">${supportButtons(supports)}</div></div>`;
 }
-function turnUI(m){const p=m.players[0];if(fx) return `<div class="prompt"><b>${fx.who?sideName(m,fx.who):'나'} ${fx.rolling?'주사위를 굴리는 중':'이동 중'} · ${fx.face}</b>${isTrio(m)&&fx.who?ffButton():''}</div>`;if(m.ended)return `<div class="prompt"><div class="go">${btn('캠페인으로','finish','','primary')}</div><div class="prompt-main"><b>${m.winner===0?'승리':'패배'}</b>${isTrio(m)&&save.lastReward?.trial?`<span class="small trial-reward"> ${save.lastReward.loss?`보상: 커먼 ${save.lastReward.pulled.length}장 · 재료 +${save.lastReward.dust}`:`보상: 카드팩 ${save.lastReward.packs}개`}${m.winner===0&&save.achievements?.[stageById(m.stageId).achievement]==='ready'?' · 첫 승리 업적 달성':''}</span>`:''}<p class="small">${esc(m.reason)} · ${m.players.map(pl=>(isTrio(m)?sideName(m,pl.id)+' ':'')+goldScore(m,pl.id)).join(' : ')}</p></div></div>`;
+function turnUI(m){const p=m.players[0];if(fx) return `<div class="prompt"><b>${travelLabel()}</b>${isTrio(m)&&fx.who?ffButton():''}</div>`;if(m.ended)return `<div class="prompt"><div class="go">${btn('캠페인으로','finish','','primary')}</div><div class="prompt-main"><b>${m.winner===0?'승리':'패배'}</b>${isTrio(m)&&save.lastReward?.trial?`<span class="small trial-reward"> ${save.lastReward.loss?`보상: 커먼 ${save.lastReward.pulled.length}장 · 재료 +${save.lastReward.dust}`:`보상: 카드팩 ${save.lastReward.packs}개`}${m.winner===0&&save.achievements?.[stageById(m.stageId).achievement]==='ready'?' · 첫 승리 업적 달성':''}</span>`:''}<p class="small">${esc(m.reason)} · ${m.players.map(pl=>(isTrio(m)?sideName(m,pl.id)+' ':'')+goldScore(m,pl.id)).join(' : ')}</p></div></div>`;
  if(m.phase==='strike') return defenseControls(m);
  if(m.current!==0)return `<div class="prompt">${isTrio(m)?sideName(m,m.current):'AI'}가 판단 중입니다…${isTrio(m)?ffButton():''}</div>`;
  if(m.phase==='prep'){const spells=p.hand.filter(id=>legalSpell(save,id));const pay=m.salaryNotice?`<span class="salary">월급 +${m.salaryNotice}G</span>`:'';return `<div class="prompt"><div class="go">${btn('주사위 굴리기','roll','','primary')}</div><div class="prompt-main"><b>이동 준비</b>${pay}<p class="small">굴리면 고리를 따라 움직입니다. 빈 칸, 내 칸, 적 칸에 따라 할 일이 달라집니다.</p>${spells.length?`<div class="choices">${spells.map(id=>btn(`${CARDS[id].name} 보기`,'inspect',`data-id="${id}" data-intent="spell"`,'outline')).join('')}</div>`:''}</div></div>`;}
@@ -419,9 +421,10 @@ function startTravel(who,from,steps,fast=false){
     fx.face=spins>=(fx.fast?3:7)?steps:1+Math.floor(Math.random()*4);
     const die=document.querySelector('.die'),face=document.querySelector('.die-face'),label=document.querySelector('.prompt b');
     if(face) face.textContent=String(fx.face);
-    if(die) die.dataset.face=String(fx.face);
-    if(label) label.textContent=`${fx.who?sideName(save.match,fx.who):'나'} 주사위를 굴리는 중 · ${fx.face}`;
-    if(spins>=(fx.fast?3:7)){fx.rolling=false;fx.face=steps;if(die){die.classList.remove('rolling');die.classList.add('landed');}if(face) face.textContent=String(steps);fxTimer=setTimeout(hop,fx.fast?160:360);return;}
+    // The same 1..4 face drives both the sprite and its text, including the final frame.
+    if(die){die.dataset.face=String(fx.face);die.style.setProperty('--face',diePosition(fx.face));}
+    if(spins>=(fx.fast?3:7)){fx.rolling=false;fx.face=steps;if(die){die.classList.remove('rolling');die.classList.add('landed');}if(label)label.textContent=travelLabel();fxTimer=setTimeout(hop,fx.fast?160:360);return;}
+    if(label) label.textContent=travelLabel();
     fxTimer=setTimeout(spin,70);
   };
   fxTimer=setTimeout(spin,70);
@@ -462,4 +465,5 @@ root.addEventListener('change',async e=>{if(e.target.id==='collection-sort'){col
  try{const next=loadSave(await file.text());save=next;sheet=null;story=null;selectedUnit=null;selectedItem=null;page='home';status='백업에서 진행 기록을 복구했습니다.';}catch(err){status=`복원 취소: ${err.message}`;}render();});
 render();
 queueAi();
+
 
