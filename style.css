@@ -107,7 +107,7 @@ img.pawn.ai{border-color:#ff9d7b}
 .intro .action-row{margin-top:12px}
 .story-screen h1{font-size:26px;line-height:1.3;margin-top:4px}
 @media(max-width:720px){
-  .story-screen{min-height:calc(100dvh - 132px);padding:14px 12px}
+  .story-screen{min-height:calc(100dvh - 137px);padding:14px 12px}
   .story-card{flex-direction:column;align-items:center}
   .story-face{width:96px;height:96px}
   .story-line{font-size:18px}
@@ -300,3 +300,52 @@ body.ingame .hand .card-title b{display:inline;white-space:normal;word-break:kee
 @media(max-width:720px){.tile .tile-number,.tile .here-flag,.tile .miss-flag,.tile .match-flag{font-size:10px!important}}
 .tile .el-chip,.tile .tile-unit,.tile .match-flag,.tile .miss-flag,.tile .here-flag{white-space:nowrap;overflow:hidden;text-overflow:clip;overflow-wrap:normal;word-break:keep-all;max-width:100%}
 .trio-board.p4 .tile.owner-none .tile-unit{display:none}
+/* ---- UI 0.1.48 rune-visual2 (GrokBot): textured tiles, card frames, board ambience, summon/battle feedback ---- */
+.tile{isolation:isolate}
+.tile::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.55;mix-blend-mode:soft-light}
+.tile.el-fire::before{background:radial-gradient(circle at 20% 110%,#ffb06a 0 18%,transparent 45%),repeating-linear-gradient(135deg,#0000 0 6px,#ff9a5a33 6px 7px)}
+.tile.el-water::before{background:radial-gradient(ellipse at 50% 120%,#9fe6ff 0 20%,transparent 55%),repeating-radial-gradient(circle at 50% 130%,#0000 0 5px,#bdefff40 5px 6px)}
+.tile.el-earth::before{background:radial-gradient(circle at 80% 100%,#c7e58a 0 16%,transparent 42%),repeating-linear-gradient(90deg,#0000 0 7px,#d9f0a12e 7px 8px),repeating-linear-gradient(0deg,#0000 0 9px,#2a1e0a40 9px 10px)}
+.tile.el-air::before{background:radial-gradient(circle at 30% 0%,#e2d3ff 0 16%,transparent 45%),repeating-linear-gradient(160deg,#0000 0 8px,#e6dcff3a 8px 9px,#0000 9px 14px)}
+.tile.el-neutral::before{background:repeating-linear-gradient(45deg,#0000 0 5px,#ffffff1c 5px 6px),repeating-linear-gradient(-45deg,#0000 0 5px,#ffffff14 5px 6px)}
+.tile.event::before{background:radial-gradient(circle at 50% 50%,#ffe39a 0 22%,transparent 60%),repeating-conic-gradient(from 0deg at 50% 50%,#ffd76a26 0 10deg,#0000 10deg 30deg);opacity:.6}
+.tile::after{content:"";position:absolute;right:-6%;bottom:-6%;width:58%;aspect-ratio:1;z-index:-1;pointer-events:none;opacity:.22;background:var(--sp-elements) 0 0/600% 100% no-repeat;filter:drop-shadow(0 0 4px #fff8)}
+.tile.el-fire::after{background-position:0 0}.tile.el-water::after{background-position:20% 0}.tile.el-earth::after{background-position:40% 0}.tile.el-air::after{background-position:60% 0}.tile.el-neutral::after{background-position:80% 0}.tile.event::after{background-position:100% 0;opacity:.3}
+.tile{box-shadow:inset 0 1px 0 #ffffff2e,inset 0 -2px 0 #0000004d}
+.tile.owner-0{box-shadow:inset 0 0 0 1px #7bddf055,inset 0 -2px 0 #0000004d,0 0 6px #7bddf066}
+.tile.owner-1{box-shadow:inset 0 0 0 1px #ffa58d55,inset 0 -2px 0 #0000004d,0 0 6px #ffa58d66}
+.board{background:radial-gradient(circle at 50% 50%,#1d3650 0,#0f1d2c 70%),#142334;border-color:#c9a865;box-shadow:inset 0 0 0 1px #e6c98a66,0 0 0 3px #0b1520,0 0 0 4px #c9a86555,0 12px 28px #04101888}
+.board-center{background:radial-gradient(circle,#0f1f3040 0,#0f1f3099 72%),var(--bc,none) center/cover no-repeat,#122538;border-color:#c9a86599;box-shadow:inset 0 0 24px #000a,inset 0 0 0 1px #6fd3e033;position:relative;overflow:hidden}
+.board-center::before{content:"";position:absolute;inset:8%;border-radius:50%;border:1px dashed #7fe3ef44;pointer-events:none;animation:runeSpin 40s linear infinite}
+.board-center>*{position:relative}
+@keyframes runeSpin{to{transform:rotate(360deg)}}
+/* card frames */
+.mini-card{position:relative;background-image:linear-gradient(180deg,#ffffff10,#0000 40%,#00000030);box-shadow:inset 0 0 0 1px #e8d1a033,0 2px 6px #0007}
+.mini-card.rarity-u{box-shadow:inset 0 0 0 1px #6fb3ff66,0 0 8px #3d8bdc55}
+.mini-card.rarity-r{box-shadow:inset 0 0 0 1px #b79bff77,0 0 9px #8b6cff66}
+.mini-card.rarity-e{box-shadow:inset 0 0 0 1px #ffc27a88,0 0 10px #e08a3a77}
+.mini-card.rarity-l{box-shadow:inset 0 0 0 1px #ffe39aaa,0 0 12px #ffcf5a88}
+.mini-card .card-art,.versus .card-art{border:1px solid #e3c98580;box-shadow:inset 0 0 12px #000c,0 0 0 2px #0b1520;background:radial-gradient(circle at 50% 38%,#42627f,#101a26 74%)}
+.mini-card.el-fire .card-art{background:radial-gradient(circle at 50% 38%,#7a3a32,#160e10 74%)}
+.mini-card.el-water .card-art{background:radial-gradient(circle at 50% 38%,#265a7e,#0b1620 74%)}
+.mini-card.el-earth .card-art{background:radial-gradient(circle at 50% 38%,#3f6236,#0e160d 74%)}
+.mini-card.el-air .card-art{background:radial-gradient(circle at 50% 38%,#4d3f83,#120f20 74%)}
+/* summon / capture / battle feedback */
+.tile.summoned{animation:summonIn .9s cubic-bezier(.2,1.4,.4,1)}
+.tile.summoned .tile-art,.tile.summoned .tile-unit{animation:summonRise .9s ease-out}
+.tile.summoned::after{opacity:.6;animation:summonGlyph .9s ease-out}
+@keyframes summonIn{0%{transform:scale(.82);filter:brightness(2.2)}60%{transform:scale(1.08);filter:brightness(1.4)}100%{transform:none;filter:none}}
+@keyframes summonRise{0%{transform:translateY(40%);opacity:0}100%{transform:none;opacity:1}}
+@keyframes summonGlyph{0%{transform:scale(.4) rotate(-40deg);opacity:1}100%{transform:none;opacity:.22}}
+.tile.captured{animation:captureFlip .8s ease}
+@keyframes captureFlip{0%{transform:rotateY(0)}45%{transform:rotateY(90deg);filter:brightness(2)}100%{transform:rotateY(0)}}
+.battle-sheet .versus{position:relative}
+.battle-sheet .versus::after{content:"⚔";position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);font-size:28px;color:#ffe9a8;text-shadow:0 0 10px #ffb04a,0 0 2px #000;animation:clashPop .6s ease-out}
+.battle-sheet.win .versus>:first-child{animation:lunge .5s ease-out}
+.battle-sheet.lose .versus>:last-child{animation:lungeL .5s ease-out}
+@keyframes clashPop{0%{transform:translate(-50%,-50%) scale(2.4);opacity:0}60%{opacity:1}100%{transform:translate(-50%,-50%) scale(1)}}
+@keyframes lunge{0%{transform:translateX(-14px)}50%{transform:translateX(8px)}100%{transform:none}}
+@keyframes lungeL{0%{transform:translateX(14px)}50%{transform:translateX(-8px)}100%{transform:none}}
+@media(max-width:720px){body.ingame .tile-top,body.ingame .tile-unit,body.ingame .tile-top b{font-size:10px}.sp-el{width:9px;height:9px}}
+@media(prefers-reduced-motion:reduce){.board-center::before,.tile.summoned,.tile.summoned *,.tile.captured,.battle-sheet .versus::after,.battle-sheet .versus>*{animation:none!important}}
+@media(max-width:720px){body.ingame .el-chip,body.ingame .route-hint{font-size:10px}body.ingame .el-chip{line-height:1.2}}
