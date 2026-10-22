@@ -39,7 +39,7 @@ function artTag(src, alt, cls){return `<img class="${cls}" src="${src}" alt="${e
 function cardMini(id,controls='',attrs='',chosen=false){const c=CARDS[id];return `<div class="mini-card${chosen?' chosen':''}" ${attrs}>${artTag(cardSrc(id),c.name,'card-art')}<div class="card-title">${badge(c.rarity)} <b>${esc(c.name)}</b></div><div class="small">${ELEMENTS[c.element]} · ${kind(c)} · ${c.cost}G${c.kind==='unit'?` · ${c.atk}/${c.hp} · 강화 +${c.grow??3}`:''}</div><div class="card-desc">${esc(withTrait(c))}</div>${controls}</div>`;}
 function nav(){return `<header class="topbar"><div><b>✦ 룬 영토</b><span class="sub"> Alpha ${VERSION}</span> ${btn(muted()?'소리 끔':'소리 켬','mute','','quiet')}</div><div class="nav">${btn('캠페인','home','','navbtn')}${btn('덱·도감','collection','','navbtn')}${btn('로그','logs','','navbtn')}${btn('백업','backup','','navbtn')}</div></header>`;}
 function home(){const p=save.progress;return `<section class="intro"><h1>영토와 카드의 전술</h1><p>1인용 모바일 웹 프로토타입. <b>영토 선점·자원 투자·침략</b>을 선택하는 1:1 AI 캠페인입니다.</p><div class="pills"><span>🪙 재료 ${save.dust}</span><span>🎟️ 선택권 ${save.tickets}</span><span>🃏 덱 ${save.deck.length}/${DECK_SIZE}</span></div><div class="action-row">${btn('프롤로그','story-open','data-stage="0"','outline')}</div></section>${save.match?`<div class="notice">진행 중인 대전이 있습니다. ${btn('대전 계속','continue')}</div>`:''}
-<section class="section"><h2>캠페인</h2><div class="stage-grid">${STAGES.map(st=>{const lock=st.id>p.highestUnlocked,won=p.wins[st.id]||0;const quote=lock?'':`<p class="story-quote">${esc(STORY.stages[st.id].intro.hook)}</p>`;return `<article class="stage"><div class="stage-head"><b>${st.id}. ${esc(st.name)}</b><span>${lock?'🔒':p.cleared.includes(st.id)?'✓ 클리어':'도전 가능'}</span></div><p>${esc(st.focus)} · 상대: ${esc(st.enemy)}</p>${quote}<p class="small">승리 ${won}회 · 반복 3승마다 선택권 1장 (첫 승 이후) · 일일 첫 승리 보상 ×2</p><div class="stage-buttons">${btn('이야기','story-open',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('카드 확인','deckcheck',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('일반 대전','start',`data-stage="${st.id}" data-diff="normal" ${lock||!!save.match?'disabled':''}`)}${btn('어려움','start',`data-stage="${st.id}" data-diff="hard" ${lock||!p.cleared.includes(st.id)||!!save.match?'disabled':''}`,'outline')}</div></article>`;}).join('')}</div></section>${rewardHTML()}<section class="section"><h2>알파 0.1 범위</h2><p class="small">현재는 <b>16칸 보드·카드 ${CARD_LIST.length}종·덱 ${DECK_SIZE}장·스테이지 3개</b>입니다. 덱 장수는 컬드셉트 비긴즈의 40장을 기준으로 했습니다. 같은 가격은 서로 상위가 아니고, 일부 유닛만 강화 폭이 큽니다.</p></section>`;}
+<section class="section"><h2>캠페인</h2><div class="stage-grid">${STAGES.map(st=>{const lock=st.id>p.highestUnlocked,won=p.wins[st.id]||0;const quote=lock?'':`<p class="story-quote">${esc(STORY.stages[st.id].intro.hook)}</p>`;return `<article class="stage"><div class="stage-head"><b>${st.id}. ${esc(st.name)}</b><span>${lock?'🔒':p.cleared.includes(st.id)?'✓ 클리어':'도전 가능'}</span></div><p>${esc(st.focus)} · 상대: ${esc(st.enemy)}</p>${quote}<p class="small">승리 ${won}회 · 반복 3승마다 선택권 1장 (첫 승 이후) · 일일 첫 승리 보상 ×2</p><div class="stage-buttons">${btn('이야기','story-open',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('카드 확인','deckcheck',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('일반 대전','start',`data-stage="${st.id}" data-diff="normal" ${lock||!!save.match?'disabled':''}`)}${btn('어려움','start',`data-stage="${st.id}" data-diff="hard" ${lock||!p.cleared.includes(st.id)||!!save.match?'disabled':''}`,'outline')}</div></article>`;}).join('')}</div></section>${chapterHTML()}${rewardHTML()}<section class="section"><h2>알파 0.1 범위</h2><p class="small">현재는 <b>16칸 보드·카드 ${CARD_LIST.length}종·덱 ${DECK_SIZE}장·스테이지 3개</b>입니다. 덱 장수는 컬드셉트 비긴즈의 40장을 기준으로 했습니다. 같은 가격은 서로 상위가 아니고, 일부 유닛만 강화 폭이 큽니다.</p></section>`;}
 function rewardHTML(){const r=save.lastReward;if(!r)return '';if(r.loss)return `<section class="notice">최근 경기: 패배 · 제작 재료 +${r.dust}</section>`;
  const counters={};for(const v of r.pulled||[]){const c=CARDS[v.id];const k=`${c.rarity}:${v.id}:${v.converted?'dust':'card'}`;counters[k]=(counters[k]||0)+1;}
  return `<section class="section rewards"><h2>최근 획득 보상</h2><p>스테이지 ${r.stageId} 카드팩 ${r.packs}개${r.daily?' · 오늘 첫 승리 ×2':''}${r.first?' · 최초 클리어':''}${r.ticket?' · 선택권 +1':''}</p><p class="small">이 팩은 방금 이긴 스테이지 카드만 나옵니다. 선택권과 제작은 이미 클리어한 스테이지 전체입니다.</p>${r.key?`<p class="key-reward">확정 공략 카드: <b>${esc(CARDS[r.key.id].name)}</b>${r.key.converted?' (보유 상한 → 재료)':''}</p>`:''}<div class="reward-grid">${Object.entries(counters).map(([k,v])=>{const [rarity,id,type]=k.split(':');return `<div class="reward-row">${badge(rarity)} ${esc(CARDS[id].name)} ×${v} ${type==='dust'?'↪ 재료':''}</div>`;}).join('')}</div></section>`;
@@ -111,10 +111,11 @@ function storyPack(){
   const st=STORY.stages[story.id];
   if(!st) return STORY.prologue;
   if(story.part==='outro') return st.outro;
-  if(story.part==='read'){
+  if(story.part==='chapter'||story.part==='read'){
     const pages=[...st.intro.pages];
-    if(save.progress.cleared.includes(story.id)) pages.push(...st.outro.pages);
-    return {kicker:st.intro.kicker, title:st.intro.title, face:st.intro.face, pages};
+    if(story.part==='chapter'||save.progress.cleared.includes(story.id)) pages.push(...st.outro.pages);
+    const title=story.part==='chapter'?st.intro.title:st.intro.title;
+    return {kicker:st.intro.kicker, title, face:st.intro.face, pages};
   }
   return st.intro;
 }
@@ -122,13 +123,24 @@ function markStory(){
   if(!story||!save.story) return;
   if(story.part==='prologue') save.story.prologue=true;
   if(typeof story.id==='number'){
-    if(story.part==='intro'||story.part==='read') save.story.intro[story.id]=true;
-    if(story.part==='outro'||(story.part==='read'&&save.progress.cleared.includes(story.id))) save.story.outro[story.id]=true;
+    if(story.part==='intro'||story.part==='read'||story.part==='chapter') save.story.intro[story.id]=true;
+    if(story.part==='outro'||story.part==='chapter'||(story.part==='read'&&save.progress.cleared.includes(story.id))) save.story.outro[story.id]=true;
+    if(story.part==='chapter') save.story.done[story.id]=true;
   }
 }
+function chapterOpen(id){
+  if(id===4) return save.progress.cleared.includes(3);
+  return !!(save.story.done&&save.story.done[id-1]);
+}
+function chapterHTML(){
+  const ids=[4,5,6];
+  return `<section class="section"><h2>다음 걸음</h2><p class="small">3장을 클리어하면 이어집니다. 대전은 없고, 이야기만 있습니다.</p><div class="stage-grid">${ids.map(id=>{const st=STORY.stages[id];const open=chapterOpen(id);const done=!!(save.story.done&&save.story.done[id]);const name=st.intro.kicker.replace(/^\d+장\s·\s/,'');const who={4:'감사 노엘',5:'측량사 린',6:'고용주 세르'}[id];return `<article class="stage"><div class="stage-head"><b>${id}. ${esc(name)}</b><span>${!open?'🔒':done?'✓ 읽음':'이야기'}</span></div><p>${esc(who)}</p>${open?`<p class="story-quote">${esc(st.intro.hook)}</p>`:'<p class="small">앞 이야기가 끝나야 열립니다.</p>'}<div class="stage-buttons">${btn(done?'다시 읽기':'이야기 읽기','story-open',`data-stage="${id}" data-part="chapter" ${open?'':'disabled'}`,'outline')}</div></article>`;}).join('')}</div></section>`;
+}
 function beginMatch(stageId,diff){startMatch(save,Number(stageId),diff);selectedUnit=null;selectedItem=null;sheet=null;story=null;page='game';sfx('tap');}
-function closeStory(){
-  const then=story&&story.then; markStory(); story=null;
+function closeStory(finished=true){
+  const then=story&&story.then;
+  if(finished) markStory();
+  story=null;
   if(then&&then.act==='start'){beginMatch(then.stage, then.diff);return;}
   page='home';
 }
@@ -189,9 +201,9 @@ function doAction(act,id,el){
  case 'noop':return;
  case 'continue':page='game';break;
  case 'start':{const stageId=Number(el.dataset.stage),diff=el.dataset.diff;if(!save.story.intro[stageId]){story={id:stageId,part:'intro',page:0,then:{act:'start',stage:stageId,diff}};page='story';sheet=null;sfx('tap');break;}beginMatch(stageId,diff);break;}
- case 'story-open':{const n=Number(el.dataset.stage)||0;story=n?{id:n,part:'read',page:0,then:null}:{id:'prologue',part:'prologue',page:0,then:null};page='story';sheet=null;sfx('tap');break;}
+ case 'story-open':{const n=Number(el.dataset.stage)||0;const part=el.dataset.part==='chapter'?'chapter':(n?'read':'prologue');if(part==='chapter'&&!chapterOpen(n))break;story=n?{id:n,part,page:0,then:null}:{id:'prologue',part:'prologue',page:0,then:null};page='story';sheet=null;sfx('tap');break;}
  case 'story-next':{const pack=storyPack();if(story&&pack&&story.page<pack.pages.length-1){story.page++;sfx('tap');break;}closeStory();sfx('tap');break;}
- case 'story-skip':closeStory();sfx('tap');break;
+ case 'story-skip':closeStory(story.part!=='chapter');sfx('tap');break;
  case 'spell':playSpell(save,id);sheet=null;sfx('spell');break;
  case 'roll':{const who=save.match.current,from=save.match.players[who].pos;const steps=roll(save);startTravel(who,from,steps);return;}
  case 'place':place(save,id);sheet=null;sfx('summon');break;

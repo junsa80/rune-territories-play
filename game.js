@@ -5,7 +5,7 @@ export function newSave(seed = Date.now()) {
   STARTER_DECK.forEach(id => collection[id] = (collection[id]||0)+1);
   return {version:VERSION, seed:seed>>>0, collection, deck:[...STARTER_DECK], dust:0, tickets:0,
     progress:{highestUnlocked:1,cleared:[],wins:{},lastDailyWin:{}},match:null,lastReward:null,
-    story:{prologue:false, intro:{}, outro:{}},
+    story:{prologue:false, intro:{}, outro:{}, done:{}},
     log:['프로젝트 알파 0.1 — 캠페인 1 스테이지 개방.']};
 }
 function ensure(ok, message) { if (!ok) throw new Error(message); }
@@ -305,5 +305,6 @@ export function loadSave(raw){const s=typeof raw==='string'?JSON.parse(raw):raw;
  if(!s.story||typeof s.story!=='object') s.story={prologue:false, intro:{}, outro:{}};
  if(!s.story.intro||typeof s.story.intro!=='object') s.story.intro={};
  if(!s.story.outro||typeof s.story.outro!=='object') s.story.outro={};
+ if(!s.story.done||typeof s.story.done!=='object') s.story.done={};
  return s;
 }
