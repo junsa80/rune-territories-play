@@ -217,3 +217,7 @@ img.pawn.active{width:22px;height:22px;z-index:5;box-shadow:0 0 0 2px #fff}
 .card-title{flex-wrap:wrap}
 .card-title b{white-space:normal}
 .board-center .score-me,.board-center .score-ai,.board-center .small{white-space:nowrap}
+.bonus-line{margin:2px 0;font-size:13px;line-height:1.35}
+.bonus-line b{color:#f8d78d}
+.deck-sum .pills{margin:4px 0}
+.deck-sum .el-chip{font-size:12px}

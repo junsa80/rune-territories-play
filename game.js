@@ -165,11 +165,19 @@ export function combatPreview(s,attackerId,itemId=null,defItemId=null){const m=s
  if(item){ensure(item.kind==='item'&&p.hand.includes(itemId),'아이템 손패 없음');}
  if(defItem){ensure(defItem.kind==='item'&&m.players[t.owner].hand.includes(defItemId),'수비 아이템 없음');}
  const am=attackMods(a,t), dm=defendMods(m,t), im=itemMods(item,a,t), dim=defendItemMods(defItem,d,t);
- const attack=a.atk+tileBonus(t,a)+am.atk+im.atk;
- const defenderHP=d.hp+tileBonus(t,d)+(t.level-1)*(d.grow??3)+neighborBonus(m,t,t.owner)+dm.hp+auraHP(m,t)+dim.hp;
+ const tileAtk=tileBonus(t,a), tileHp=tileBonus(t,d), tileRet=tileBonus(t,d);
+ const grow=(t.level-1)*(d.grow??3), neigh=neighborBonus(m,t,t.owner), aura=auraHP(m,t);
+ const attack=a.atk+tileAtk+am.atk+im.atk;
+ const defenderHP=d.hp+tileHp+grow+neigh+dm.hp+aura+dim.hp;
  const defense=a.hp+am.def+im.def;
- const retaliation=d.atk+tileBonus(t,d)+dm.ret+dim.ret;
- return {attack,defenderHP,defense,retaliation,success:attack>=defenderHP&&defense>retaliation,cost:a.cost+(item?.cost||0),toll:tollOf(m,t),stay:am.stay};
+ const retaliation=d.atk+tileRet+dm.ret+dim.ret;
+ const parts={
+  atk:[['기본',a.atk],['지형',tileAtk],['특성',am.atk],['장비',im.atk]],
+  hp:[['기본',d.hp],['지형',tileHp],['레벨',grow],['연속',neigh],['특성',dm.hp],['이웃',aura],['장비',dim.hp]],
+  body:[['기본',a.hp],['특성',am.def],['장비',im.def]],
+  ret:[['기본',d.atk],['지형',tileRet],['특성',dm.ret],['장비',dim.ret]]
+ };
+ return {attack,defenderHP,defense,retaliation,success:attack>=defenderHP&&defense>retaliation,cost:a.cost+(item?.cost||0),toll:tollOf(m,t),stay:am.stay,parts};
 }
 export function place(s,id){const m=s.match;ensure(placementOptions(s).includes(id),'배치 불가능');const p=m.players[m.current],t=m.tiles[p.pos],c=CARDS[id];const cut=Math.min(c.cost,p.placeCut||0);p.gold-=c.cost-cut;p.placeCut=0;removeHand(p,id);
  Object.assign(t,{owner:m.current,cardId:id,level:1});
@@ -298,7 +306,7 @@ export function resolveStrike(s,unitId,atkSupport=null,defSupport=null){
     log(s,`[${who(atk)}] 침략 실패 (${v.attack}/${v.defenderHP}) · 통행료 ${moved}G`);
   }
   m.act={kind:v.success?'strike':'blocked',id:unit.id,name:unit.name,element:unit.element,who:atk,line:spells.map(x=>`${whoName(x.who)} ${x.name} · ${x.line}`).join(' / ')};
-  m.battleResult={attacker:atk,defender:def,unitId,atkSupport:atkSupport||null,defSupport:defSupport||null,defenderId,element:t.element,tile:t.index,success:v.success,attack:v.attack,defenderHP:v.defenderHP,defense:v.defense,retaliation:v.retaliation,paid:moved,spells};
+  m.battleResult={attacker:atk,defender:def,unitId,atkSupport:atkSupport||null,defSupport:defSupport||null,defenderId,element:t.element,tile:t.index,success:v.success,attack:v.attack,defenderHP:v.defenderHP,defense:v.defense,retaliation:v.retaliation,parts:v.parts,paid:moved,spells};
   completeTurn(s);return v.success;
 }
 export function declareStrike(s,unitId,supportId=null){

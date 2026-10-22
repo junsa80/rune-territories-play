@@ -1,5 +1,5 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.35';
-import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement} from './game.js?v=0.1.35';
+import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.36';
+import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement} from './game.js?v=0.1.36';
 import {unlockAudio, sfx, toggleMute, muted} from './audio.js';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
@@ -53,7 +53,7 @@ function battleSheet(m){const b=m.battleResult;if(!b)return '';
  const d=verdict(b,b.defender===0);
  const flow=b.paid?`<p class="gold-note">${atkWho} → ${defWho} <b>${b.paid}G</b> 통행료</p>`:`<p class="gold-note">골드는 넘어가지 않았다</p>`;
  const spells=(b.spells||[]).map(x=>`<p class="spell-line">${x.who===0?'나':'적'} ${esc(x.name)} · ${esc(x.line)}</p>`).join('');
- return `<div class="sheet-back"><article class="sheet battle-sheet ${d.bad?'lose flash-lose':'win flash-win'}" data-action="noop"><p class="kicker">전투 결과</p><h1>${d.title}</h1><div class="versus">${sideCard(b.unitId,atkWho,b.atkSupport,false)}${sideCard(b.defenderId,defWho,b.defSupport,false)}</div><p class="clash">${d.line}</p><p class="small">카드 그림의 공격·생명은 기본값입니다.</p>${spells}${flow}<div class="go">${btn('확인','battle-clear','','primary')}</div></article></div>`;
+ return `<div class="sheet-back"><article class="sheet battle-sheet ${d.bad?'lose flash-lose':'win flash-win'}" data-action="noop"><p class="kicker">전투 결과</p><h1>${d.title}</h1><div class="versus">${sideCard(b.unitId,atkWho,b.atkSupport,false)}${sideCard(b.defenderId,defWho,b.defSupport,false)}</div><p class="clash">${d.line}</p>${bonusBlock(b,b.defender===0)}<p class="small">카드 그림의 공격·생명은 기본값입니다.</p>${spells}${flow}<div class="go">${btn('확인','battle-clear','','primary')}</div></article></div>`;
 }
 function nav(){return `<header class="topbar"><div><b>✦ 룬 영토</b><span class="sub"> Alpha ${VERSION}</span> ${btn(muted()?'소리 끔':'소리 켬','mute','','quiet')}</div><div class="nav">${btn('캠페인','home','','navbtn')}${btn('덱·도감','collection','','navbtn')}${btn('로그','logs','','navbtn')}${btn('백업','backup','','navbtn')}</div></header>`;}
 function home(){const p=save.progress;return `<section class="intro"><h1>영토와 카드의 전술</h1><p>1인용 모바일 웹 프로토타입. <b>영토 선점·자원 투자·침략</b>을 선택하는 1:1 AI 캠페인입니다.</p><div class="pills"><span>🪙 재료 ${save.dust}</span><span>🎟️ 선택권 ${save.tickets}</span><span>🃏 덱 ${save.deck.length}/${DECK_SIZE}</span></div><div class="action-row">${btn('프롤로그','story-open','data-stage="0"','outline')}</div></section>${save.match?`<div class="notice">진행 중인 대전이 있습니다. ${btn('대전 계속','continue')}</div>`:''}
@@ -131,10 +131,20 @@ function verdict(v,defending){
   const title=defending?(took?'수비 실패':'수비 성공'):(took?'침략 성공':'침략 실패');
   return {title,line,bad:took===defending};
 }
+function bonusLine(label,total,rows){
+  if(!rows) return '';
+  const bits=rows.filter(r=>r[1]).map(r=>`${r[0]} ${r[1]>0&&r[0]!=='기본'?'+':''}${r[1]}`);
+  return `<p class="bonus-line"><b>${label} ${total}</b> ${bits.length?`= ${bits.join(' ')}`:''}</p>`;
+}
+function bonusBlock(v,defending){
+  const p=v.parts; if(!p) return '';
+  const atk=defending?'적 공격':'내 공격', land=defending?'내 땅 생명':'적 땅 생명', ret=defending?'내 반격':'적 반격', body=defending?'적 생명':'내 생명';
+  return `${bonusLine(atk,v.attack,p.atk)}${bonusLine(land,v.defenderHP,p.hp)}${bonusLine(ret,v.retaliation,p.ret)}${bonusLine(body,v.defense,p.body)}`;
+}
 function forecastHTML(v,m){
   if(!v) return '<p class="small">유닛을 고르면 상대 장비를 빼고 계산한 예측이 나옵니다.</p>';
   const d=verdict(v,m.phase==='strike');
-  return `<p class="forecast ${d.bad?'lose':'win'}"><b>${d.title}</b> ${d.line}</p><p class="small">카드에 적힌 공격·생명은 기본값입니다. 위 숫자는 지형·레벨·특성을 더한 값입니다. 상대 장비만 가려져 있어 결과가 바뀔 수 있습니다.</p>`;
+  return `<p class="forecast ${d.bad?'lose':'win'}"><b>${d.title}</b> ${d.line}</p>${bonusBlock(v,m.phase==='strike')}<p class="small">0인 항목은 숨깁니다. 상대 장비만 가려져 있어 확정 뒤에 숫자가 바뀔 수 있습니다.</p>`;
 }
 function openForecast(m){
   try{
@@ -186,7 +196,7 @@ function game(){const m=save.match;if(!m)return home();const p=m.players[0];
  if(m.phase==='land'&&m.current===0&&!m.ended){const t=getLandedTile(save);if(t.owner===null)ensureSelected(unitPool('place'));else if(t.owner===1)ensureSelected(unitPool('invade'));}
  const cards=p.hand.map(id=>{const [act,intent,chosen]=handAttrs(id);return cardMini(id,'',`data-action="${act}" data-id="${id}" data-intent="${intent}"`,chosen);}).join('');
  return `<section class="game-area"><div class="game-header"><b>${esc(STAGES[m.stageId-1].name)} · ${m.difficulty==='hard'?'어려움':'일반'}</b><span>💰 ${p.gold}G · AI ${m.players[1].gold}G</span>${!m.ended?btn('항복','surrender','','quiet small-button'):''}</div>${m.goldNote?`<p class="gold-note">${esc(m.goldNote)}</p>`:''}${actBanner()}<div class="game-layout"><div class="board-slot">${board(m)}</div><div class="game-side"><div class="dock">${turnUI(m)}</div><div class="hand"><b>손패 ${p.hand.length}</b><div class="hand-row">${cards||'<p>손패 없음</p>'}</div></div><details class="battle-log"><summary>전투 로그</summary><div>${save.log.slice(0,12).map(s=>`<p>${esc(s)}</p>`).join('')}</div></details></div></div></section>${battleSheet(m)}`;}
-function deckCheck(){const st=STAGES.find(x=>x.id===previewStage)||STAGES[0];const hook=STORY.stages[st.id].intro.hook;return `<section class="section"><h1>대전 전 카드 확인</h1><div class="boss-row">${artTag(faceSrc(STAGE_FACE[st.id]),st.enemy,'boss-face')}<div><b>${esc(st.name)}</b><p>상대 ${esc(st.enemy)} · ${esc(st.focus)}</p><p class="story-quote">${esc(hook)}</p><p class="small">내 덱의 그림과 능력을 확인한 다음 대전을 시작하세요.</p></div></div><div class="collection-grid">${save.deck.map(id=>cardMini(id, btn('크게 보기','inspect',`data-id="${id}" data-intent="view"`,'small-button outline'))).join('')}</div><div class="action-row">${btn('이 덱으로 일반 대전','start',`data-stage="${st.id}" data-diff="normal" ${save.match?'disabled':''}`,'primary')}${btn('이야기','story-open',`data-stage="${st.id}"`,'outline')}${btn('캠페인으로','home','','outline')}</div></section>`;}
+function deckCheck(){const st=STAGES.find(x=>x.id===previewStage)||STAGES[0];const hook=STORY.stages[st.id].intro.hook;return `<section class="section"><h1>대전 전 카드 확인</h1><div class="boss-row">${artTag(faceSrc(STAGE_FACE[st.id]),st.enemy,'boss-face')}<div><b>${esc(st.name)}</b><p>상대 ${esc(st.enemy)} · ${esc(st.focus)}</p><p class="story-quote">${esc(hook)}</p><p class="small">내 덱의 그림과 능력을 확인한 다음 대전을 시작하세요.</p></div></div>${deckSummary()}<div class="collection-grid">${save.deck.map(id=>cardMini(id, btn('크게 보기','inspect',`data-id="${id}" data-intent="view"`,'small-button outline'))).join('')}</div><div class="action-row">${btn('이 덱으로 일반 대전','start',`data-stage="${st.id}" data-diff="normal" ${save.match?'disabled':''}`,'primary')}${btn('이야기','story-open',`data-stage="${st.id}"`,'outline')}${btn('캠페인으로','home','','outline')}</div></section>`;}
 function storyPack(){
   if(!story) return null;
   if(story.part==='prologue') return STORY.prologue;
@@ -237,9 +247,17 @@ function sheetHTML(){if(!sheet||!CARDS[sheet.id])return '';const c=CARDS[sheet.i
  else if(sheet.intent==='invade') play=btn('이 유닛으로 확정','invade',`data-id="${c.id}"`,'primary');
  else if(sheet.intent==='support'||sheet.intent==='item') play=btn('이 지원을 고름','select-item',`data-id="${c.id}"`,'primary');
  return `<div class="sheet-back" data-action="sheet-close"><article class="sheet" data-action="noop">${artTag(cardSrc(c.id),c.name,'sheet-art')}<div class="card-title">${badge(c.rarity)} <b>${esc(c.name)}</b></div><p>${ELEMENTS[c.element]} · ${kind(c)} · ${c.cost}G${c.kind==='unit'?` · 공격 ${c.atk} / 생명 ${c.hp} · 강화할 때마다 생명 +${c.grow??3}`:''}</p><p>${esc(withTrait(c))}</p><div class="action-row">${play}${btn('닫기','sheet-close','','outline')}</div></article></div>`;}
+function deckSummary(){
+  const deck={fire:0,water:0,earth:0,air:0,neutral:0}, own={...deck}, kind={unit:0,spell:0,item:0};
+  for(const id of save.deck){const c=CARDS[id]; if(!c) continue; deck[c.element]++; kind[c.kind]++;}
+  for(const c of CARD_LIST) own[c.element]+=(save.collection[c.id]||0);
+  const chip=(bag,el)=>`<span class="el-chip ${el}">${ELEMENTS[el]} ${bag[el]}</span>`;
+  const row=(bag)=>['fire','water','earth','air','neutral'].map(el=>chip(bag,el)).join('');
+  return `<div class="deck-sum"><p>덱 ${save.deck.length}/${DECK_SIZE} · 유닛 ${kind.unit} · 주문 ${kind.spell} · 장비 ${kind.item}</p><p class="pills">덱 ${row(deck)}</p><p class="pills">보유 ${row(own)}</p></div>`;
+}
 function collection(){const counts={};save.deck.forEach(id=>counts[id]=(counts[id]||0)+1);
  const known=CARD_LIST.filter(c=>save.progress.cleared.includes(c.stage)||(save.collection[c.id]||0)>0);
- return `<section class="section"><h1>카드 컬렉션 · 덱 편집</h1><p>덱 ${save.deck.length}/${DECK_SIZE}장 · 제작 재료 ${save.dust} · 카드 선택권 ${save.tickets}장</p><p class="small">선택권은 클리어한 스테이지의 커먼~레어 카드 중에서 선택. 보관 후 사용 가능. 레전더리도 최대 4장까지 수집 가능.</p>${save.match?'<p class="warning">진행 중인 대전에서는 덱 편집이 잠겨 있습니다.</p>':''}<div class="collection-grid">${known.map(c=>{
+ return `<section class="section"><h1>카드 컬렉션 · 덱 편집</h1>${deckSummary()}<p>제작 재료 ${save.dust} · 카드 선택권 ${save.tickets}장</p><p class="small">선택권은 클리어한 스테이지의 커먼~레어 카드 중에서 선택. 보관 후 사용 가능. 레전더리도 최대 4장까지 수집 가능.</p>${save.match?'<p class="warning">진행 중인 대전에서는 덱 편집이 잠겨 있습니다.</p>':''}<div class="collection-grid">${known.map(c=>{
   const owned=save.collection[c.id]||0,n=counts[c.id]||0,unlocked=save.progress.cleared.includes(c.stage),canCraft=unlocked&&owned<4&&save.dust>=DUST_COST[c.rarity];
   return cardMini(c.id,`<div class="small">보유 ${owned}/4 · 덱 ${n}/4 · 출처: 스테이지 ${c.stage}</div><div class="action-row mini-actions">${btn('−','deck-minus',`data-id="${c.id}" ${!n||!!save.match?'disabled':''}`,'small-button')}${btn('+','deck-plus',`data-id="${c.id}" ${n>=owned||save.deck.length>=DECK_SIZE||!!save.match?'disabled':''}`,'small-button')}${btn(`제작 ${DUST_COST[c.rarity]}`,'craft',`data-id="${c.id}" ${!canCraft?'disabled':''}`,'small-button outline')}${btn('선택권','ticket',`data-id="${c.id}" ${!unlocked||!['C','U','R'].includes(c.rarity)||!save.tickets||owned>=4?'disabled':''}`,'small-button outline')}</div>`);
  }).join('')}</div><p class="small">승리 카드팩은 그 스테이지 카드만 줍니다. 최초 클리어 핵심 카드는 팩과 따로 나옵니다. 선택권·제작은 클리어한 스테이지 전체에서 고릅니다.</p></section>`;
