@@ -1,5 +1,5 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.38';
-import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf} from './game.js?v=0.1.38';
+import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.39';
+import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf} from './game.js?v=0.1.39';
 import {unlockAudio, sfx, toggleMute, muted} from './audio.js';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
@@ -51,9 +51,9 @@ function sideCard(id,who,support,hidden){const c=id&&CARDS[id];const sup=hidden?
 function battleSheet(m){const b=m.battleResult;if(!b)return '';
  const atkWho=b.attacker===0?'나':'적', defWho=b.attacker===0?'적':'나';
  const d=verdict(b,b.defender===0);
- const flow=b.success?`<p class="gold-note">통행료 없음. 수비 몬스터는 칸에서 사라지고 공격 몬스터가 들어옵니다.</p>`:(b.paid?`<p class="gold-note">${atkWho} → ${defWho} <b>${b.paid}G</b> 통행료. 수비 몬스터는 살아 있고, 공격 카드는 소모됩니다.</p>`:`<p class="gold-note">낼 골드가 없어 통행료 0. 수비 몬스터는 살아 있습니다.</p>`);
+ const flow=b.success?`<p class="gold-note">통행료 없음. 수비는 반격 전에 쓰러지고 공격 몬스터가 칸을 가져갑니다.</p>`:(b.paid?`<p class="gold-note">${atkWho} → ${defWho} <b>${b.paid}G</b> 통행료. 수비는 살아 있습니다.</p>`:`<p class="gold-note">낼 골드가 없어 통행료 0. 수비는 살아 있습니다.</p>`);
  const spells=(b.spells||[]).map(x=>`<p class="spell-line">${x.who===0?'나':'적'} ${esc(x.name)} · ${esc(x.line)}</p>`).join('');
- return `<div class="sheet-back"><article class="sheet battle-sheet ${d.bad?'lose flash-lose':'win flash-win'}" data-action="noop"><p class="kicker">전투 결과</p><h1>${d.title}</h1><div class="versus">${sideCard(b.unitId,atkWho,b.atkSupport,false)}${sideCard(b.defenderId,defWho,b.defSupport,false)}</div><p class="clash">${d.line}</p>${bonusBlock(b,b.defender===0)}<p class="small">카드 그림의 공격·생명은 기본값입니다.</p>${spells}${flow}<div class="go">${btn('확인','battle-clear','','primary')}</div></article></div>`;
+ return `<div class="sheet-back"><article class="sheet battle-sheet ${d.tone==='win'?'win flash-win':'lose flash-lose'}" data-action="noop"><p class="kicker">전투 결과</p><h1>${d.title}</h1><div class="versus">${sideCard(b.unitId,atkWho,b.atkSupport,false)}${sideCard(b.defenderId,defWho,b.defSupport,false)}</div><p class="clash">${d.line}</p>${bonusBlock(b,b.defender===0)}<p class="small">카드 그림의 공격·생명은 기본값입니다.</p>${spells}${flow}<div class="go">${btn('확인','battle-clear','','primary')}</div></article></div>`;
 }
 function nav(){return `<header class="topbar"><div><b>✦ 룬 영토</b><span class="sub"> Alpha ${VERSION}</span> ${btn(muted()?'소리 끔':'소리 켬','mute','','quiet')}</div><div class="nav">${btn('캠페인','home','','navbtn')}${btn('덱·도감','collection','','navbtn')}${btn('로그','logs','','navbtn')}${btn('백업','backup','','navbtn')}</div></header>`;}
 function home(){const p=save.progress;return `<section class="intro"><h1>영토와 카드의 전술</h1><p>1인용 모바일 웹 프로토타입. <b>영토 선점·자원 투자·침략</b>을 선택하는 1:1 AI 캠페인입니다.</p><div class="pills"><span>🪙 재료 ${save.dust}</span><span>🎟️ 선택권 ${save.tickets}</span><span>🃏 덱 ${save.deck.length}/${DECK_SIZE}</span></div><div class="action-row">${btn('프롤로그','story-open','data-stage="0"','outline')}</div></section>${save.match?`<div class="notice">진행 중인 대전이 있습니다. ${btn('대전 계속','continue')}</div>`:''}
@@ -107,7 +107,7 @@ function board(m){let cells=[];const n=m.tiles.length;const focus=fx?(fx.from+fx
   const struck=m.battleResult&&m.battleResult.tile===i?' struck':'';
   const who=t.owner===0?'나':t.owner===1?'적':'';
   const label=ev?ev.name:(unit?unit.name:ELEMENTS[t.element]);
-  cells.push(`<div class="tile el-${t.element}${ev?' event':''}${matched?' matched':''} owner-${t.owner===null?'none':t.owner}${here}${struck}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(label)}"><div class="tile-top"><span class="el-chip ${ev?'event':t.element}">${ev?'이벤트':ELEMENTS[t.element]}</span>${matched?'<span class="match-flag">일치 +3</span>':''}${unit&&!matched&&unit.element!=='neutral'?`<span class="miss-flag">불일치</span>`:''}${who?`<span class="who">${who}</span>`:`<b>${t.level?'★'.repeat(t.level):''}</b>`}</div><div class="tile-unit">${esc(label)}${who&&t.level?` <i>Lv${t.level}</i>`:''}</div>${here?'<span class="here-flag">현재</span>':''}<div class="tile-pawns">${markers}</div></div>`);}
+  cells.push(`<div class="tile el-${t.element}${ev?' event':''}${matched?' matched':''} owner-${t.owner===null?'none':t.owner}${here}${struck}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(label)}"><div class="tile-top"><span class="el-chip ${ev?'event':t.element}">${ev?'이벤트':ELEMENTS[t.element]}</span>${matched?'<span class="match-flag">생명 +3</span>':''}${unit&&!matched&&unit.element!=='neutral'?`<span class="miss-flag">불일치</span>`:''}${who?`<span class="who">${who}</span>`:`<b>${t.level?'★'.repeat(t.level):''}</b>`}</div><div class="tile-unit">${esc(label)}${who&&t.level?` <i>Lv${t.level}</i>`:''}</div>${here?'<span class="here-flag">현재</span>':''}<div class="tile-pawns">${markers}</div></div>`);}
  return `<div class="board" style="grid-template-columns:repeat(${m.w},minmax(0,1fr));grid-template-rows:repeat(${m.h},minmax(0,1fr))" role="img" aria-label="${n}칸 순환형 영토 보드">${cells.join('')}<div class="board-center" style="grid-column:2/${m.w};grid-row:2/${m.h}">${artTag(faceSrc(m.current?STAGE_FACE[m.stageId]||'leo':'player'), m.current?'상대':'나','center-face')}<div>라운드 <b>${m.round}/${STAGES[m.stageId-1].maxRounds}</b></div><div class="score-me">나 ${goldScore(m,0)}점</div><div class="score-ai">AI ${goldScore(m,1)}점</div><div class="small">목표 ${STAGES[m.stageId-1].target+(m.difficulty==='hard'?180:0)}점</div></div>${dieHTML()}</div>`;
 }
 function supportChoices(extra=0){
@@ -126,18 +126,18 @@ function supportButtons(ids){
 }
 function verdict(v,defending){
   const atk=defending?'적 공격':'내 공격', land=defending?'내 땅 생명':'적 땅 생명', ret=defending?'내 반격':'적 반격', body=defending?'적 생명':'내 생명';
-  const broke=v.attack>=v.defenderHP;
-  if(v.defense==null||v.retaliation==null){
-    const title=defending?(broke?'수비 실패':'수비 성공'):(broke?'침략 성공':'침략 실패');
-    return {title,line:broke?`${atk} ${v.attack} ≥ ${land} ${v.defenderHP}. 땅 넘어감.`:`${atk} ${v.attack} < ${land} ${v.defenderHP}. 막힘.`,bad:broke===defending};
+  const killed=v.attack>=v.defenderHP;
+  const countered=v.defense!=null&&v.retaliation>=v.defense;
+  if(killed){
+    const title=defending?'수비 실패':'침략 성공';
+    return {title,line:`${atk} ${v.attack} ≥ ${land} ${v.defenderHP}. 반격 전에 쓰러짐. 땅 점령. 통행료 없음.`,tone:defending?'lose':'win'};
   }
-  const lived=v.defense>v.retaliation;
-  const line=!broke?`${atk} ${v.attack} < ${land} ${v.defenderHP}. 막힘.`
-    :!lived?`${atk} ${v.attack} ≥ ${land} ${v.defenderHP}. 그러나 ${ret} ${v.retaliation} ≥ ${body} ${v.defense}. 막힘.`
-    :`${atk} ${v.attack} ≥ ${land} ${v.defenderHP}. ${body} ${v.defense} > ${ret} ${v.retaliation}. 땅 넘어감.`;
-  const took=broke&&lived;
-  const title=defending?(took?'수비 실패':'수비 성공'):(took?'침략 성공':'침략 실패');
-  return {title,line,bad:took===defending};
+  if(countered){
+    const title=defending?'수비 성공':'침략 실패';
+    return {title,line:`${atk} ${v.attack} < ${land} ${v.defenderHP}. ${ret} ${v.retaliation} ≥ ${body} ${v.defense}. 공격만 쓰러짐. 통행료.`,tone:defending?'win':'lose'};
+  }
+  const title=defending?'수비 성공':'무승부';
+  return {title,line:`${atk} ${v.attack} < ${land} ${v.defenderHP}. 둘 다 살아 있음. 통행료.`,tone:defending?'win':'lose'};
 }
 function bonusLine(label,total,rows){
   if(!rows) return '';
@@ -152,7 +152,7 @@ function bonusBlock(v,defending){
 function forecastHTML(v,m){
   if(!v) return '<p class="small">유닛을 고르면 상대 장비를 빼고 계산한 예측이 나옵니다.</p>';
   const d=verdict(v,m.phase==='strike');
-  return `<p class="forecast ${d.bad?'lose':'win'}"><b>${d.title}</b> ${d.line}</p>${bonusBlock(v,m.phase==='strike')}<p class="small">0인 항목은 숨깁니다. 상대 장비만 가려져 있어 확정 뒤에 숫자가 바뀔 수 있습니다.</p>`;
+  return `<p class="forecast ${d.tone}"><b>${d.title}</b> ${d.line}</p>${bonusBlock(v,m.phase==='strike')}<p class="small">공격이 먼저입니다. 수비 생명이 0이 되면 반격은 없습니다. 지형 일치는 생명만 +3. 상대 장비는 가려져 있습니다.</p>`;
 }
 function openForecast(m){
   try{
@@ -196,7 +196,7 @@ function turnUI(m){const p=m.players[0];if(fx) return `<div class="prompt"><b>${
  if(t.owner===null){const opts=unitPool('place');ensureSelected(opts);const c=selectedUnit&&CARDS[selectedUnit];
   const fits=opts.filter(id=>CARDS[id].element===t.element&&CARDS[id].element!=='neutral');
   const go=c?`${btn('배치','place',`data-id="${c.id}"`,'primary')}${opts.length>1?btn('다음 유닛','next-unit','data-pool="place"','outline'):''}${btn('안 둠','pass','','outline')}`:btn('안 둠','pass','','primary');
-  const coach=fits.length?`이 땅은 ${ELEMENTS[t.element]}입니다. 점 있는 카드는 공격 +3, 생명 +3입니다.`:`손패에 맞는 속성이 없습니다. 두면 보너스가 없습니다.`;
+  const coach=fits.length?`이 땅은 ${ELEMENTS[t.element]}입니다. 점 있는 카드는 이 칸에서 생명 +3입니다.`:`손패에 맞는 속성이 없습니다. 두면 생명 보너스가 없습니다.`;
   return `<div class="prompt"><div class="go">${go}</div><div class="prompt-main"><b><span class="el-chip ${t.element}">${ELEMENTS[t.element]} 땅</span></b><p class="small">${coach}</p>${c?`<p class="small">선택 <b>${esc(c.name)}</b> · ${c.cost}G · <span class="el-chip ${c.element}">${ELEMENTS[c.element]}</span> 공격 ${c.atk} / 생명 ${c.hp}${c.element===t.element&&c.element!=='neutral'?' · 속성 맞음':''}</p>`:'<p class="small">배치할 손패 유닛이 없습니다.</p>'}<div class="choices unit-choices">${opts.map(id=>btn(`${CARDS[id].element===t.element&&CARDS[id].element!=='neutral'?'● ':''}${CARDS[id].name}`,'select-unit',`data-id="${id}"`,id===selectedUnit?'chosen':'')).join('')}</div></div></div>`;}
  if(t.owner===0){const cost=45*t.level;const c=CARDS[t.cardId];const up=t.level<3&&p.gold>=cost;const comfort=p.gold>=cost+50;
   const upBtn=btn(`강화 ${cost}G`,'upgrade',`${up?'':'disabled'}`,comfort?'primary':'outline');

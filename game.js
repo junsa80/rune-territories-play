@@ -165,19 +165,20 @@ export function combatPreview(s,attackerId,itemId=null,defItemId=null){const m=s
  if(item){ensure(item.kind==='item'&&p.hand.includes(itemId),'아이템 손패 없음');}
  if(defItem){ensure(defItem.kind==='item'&&m.players[t.owner].hand.includes(defItemId),'수비 아이템 없음');}
  const am=attackMods(a,t), dm=defendMods(m,t), im=itemMods(item,a,t), dim=defendItemMods(defItem,d,t);
- const tileAtk=tileBonus(t,a), tileHp=tileBonus(t,d), tileRet=tileBonus(t,d);
+ const tileHp=tileBonus(t,d);
  const grow=(t.level-1)*(d.grow??3), neigh=neighborBonus(m,t,t.owner), aura=auraHP(m,t);
- const attack=a.atk+tileAtk+am.atk+im.atk;
+ const attack=a.atk+am.atk+im.atk;
  const defenderHP=d.hp+tileHp+grow+neigh+dm.hp+aura+dim.hp;
  const defense=a.hp+am.def+im.def;
- const retaliation=d.atk+tileRet+dm.ret+dim.ret;
+ const retaliation=d.atk+dm.ret+dim.ret;
+ const killed=attack>=defenderHP;
  const parts={
-  atk:[['기본',a.atk],['지형',tileAtk],['특성',am.atk],['장비',im.atk]],
+  atk:[['기본',a.atk],['특성',am.atk],['장비',im.atk]],
   hp:[['기본',d.hp],['지형',tileHp],['레벨',grow],['연속',neigh],['특성',dm.hp],['이웃',aura],['장비',dim.hp]],
   body:[['기본',a.hp],['특성',am.def],['장비',im.def]],
-  ret:[['기본',d.atk],['지형',tileRet],['특성',dm.ret],['장비',dim.ret]]
+  ret:[['기본',d.atk],['특성',dm.ret],['장비',dim.ret]]
  };
- return {attack,defenderHP,defense,retaliation,success:attack>=defenderHP&&defense>retaliation,cost:a.cost+(item?.cost||0),toll:tollOf(m,t),stay:am.stay,parts};
+ return {attack,defenderHP,defense,retaliation,success:killed,cost:a.cost+(item?.cost||0),toll:tollOf(m,t),stay:am.stay,parts};
 }
 export function place(s,id){const m=s.match;ensure(placementOptions(s).includes(id),'배치 불가능');const p=m.players[m.current],t=m.tiles[p.pos],c=CARDS[id];const cut=Math.min(c.cost,p.placeCut||0);p.gold-=c.cost-cut;p.placeCut=0;removeHand(p,id);
  Object.assign(t,{owner:m.current,cardId:id,level:1});
