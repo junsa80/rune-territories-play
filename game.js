@@ -66,17 +66,75 @@ export function placementOptions(s,who=s.match?.current){const m=s.match,p=m.pla
  return p.hand.filter(id=>CARDS[id].kind==='unit'&&CARDS[id].cost<=p.gold);
 }
 export function tileBonus(t,c) {return c.element!=='neutral'&&t.element===c.element?3:0;}
-export function neighborBonus(m,t,owner) {const a=m.tiles[(t.index+15)%16],b=m.tiles[(t.index+1)%16];return [a,b].filter(x=>x.owner===owner&&x.element===t.element&&t.element!=='neutral').length*2;}
+function sides(m,t){return [m.tiles[(t.index+15)%16], m.tiles[(t.index+1)%16]];}
+export function neighborBonus(m,t,owner) {return sides(m,t).filter(x=>x.owner===owner&&x.element===t.element&&t.element!=='neutral').length*2;}
+export function defendMods(m,t,level=t.level){
+  const c=t.cardId&&CARDS[t.cardId];
+  const z={hp:0,ret:0,toll:0};
+  if(!c?.trait) return z;
+  const mates=sides(m,t).filter(x=>x.owner===t.owner&&x.cardId).length;
+  const elMates=sides(m,t).filter(x=>x.owner===t.owner&&x.element===t.element&&t.element!=='neutral').length;
+  switch(c.trait){
+    case 'root-bind': return {hp:elMates*level, ret:0, toll:0};
+    case 'cloud-step': return t.element==='air'?{hp:0,ret:level,toll:0}:z;
+    case 'gate-crack': return {hp:level, ret:0, toll:0};
+    case 'rain-veil': return t.element==='water'?{hp:2*level, ret:0, toll:0}:z;
+    case 'twin-oath': return {hp:mates*level, ret:mates, toll:0};
+    case 'double-vow': return {hp:2*level, ret:0, toll:0};
+    case 'forest-wall': return {hp:2*level, ret:0, toll:elMates?12*level:0};
+    case 'storm-call': return t.element==='air'?{hp:0, ret:2*level, toll:0}:z;
+    case 'magma': return t.element==='fire'?{hp:level, ret:2*level, toll:0}:z;
+    case 'star-scale': return t.element==='fire'?{hp:2*level, ret:2*level, toll:0}:{hp:level, ret:0, toll:0};
+    case 'tide-read': return {hp:(t.element==='water'?2:1)*level, ret:0, toll:t.element==='water'?8*level:0};
+    case 'world-root': return {hp:level, ret:0, toll:4*level};
+    default: return z;
+  }
+}
+function attackMods(c,t){
+  const z={atk:0,def:0,stay:1};
+  if(!c?.trait) return z;
+  switch(c.trait){
+    case 'cloud-step': return t.element==='air'?{atk:1,def:0,stay:1}:z;
+    case 'gate-crack': return {atk:3,def:0,stay:1};
+    case 'rain-veil': return {atk:0,def:2,stay:1};
+    case 'double-vow': return {atk:2,def:2,stay:1};
+    case 'forest-wall': return {atk:0,def:2,stay:1};
+    case 'storm-call': return t.element==='air'?{atk:3,def:0,stay:2}:{atk:0,def:0,stay:1};
+    case 'magma': return t.element==='fire'?{atk:3,def:0,stay:1}:z;
+    case 'star-scale': return {atk:4,def:1,stay:1};
+    case 'tide-read': return {atk:0,def:t.element==='water'?3:1,stay:1};
+    case 'world-root': return {atk:0,def:3,stay:1};
+    default: return z;
+  }
+}
+function auraHP(m,t){
+  let n=0;
+  for(const s of sides(m,t)){
+    if(s.owner!==t.owner||!s.cardId) continue;
+    if(CARDS[s.cardId].trait==='tide-read' && t.element==='water' && s.element==='water') n+=s.level;
+  }
+  return n;
+}
+export function tollOf(m,t,level=t.level){
+  let toll=level*35+20+defendMods(m,t,level).toll;
+  for(const n of sides(m,t)) if(n.owner===t.owner && n.cardId && CARDS[n.cardId].trait==='world-root') toll+=8*n.level;
+  return toll;
+}
+export function traitNumbers(m,t,level=t.level){
+  const d=defendMods(m,t,level);
+  return {hp:d.hp+auraHP(m,t), ret:d.ret, toll:tollOf(m,t,level)};
+}
 export function combatPreview(s,attackerId,itemId=null){const m=s.match,p=m.players[m.current],t=m.tiles[p.pos];
  ensure(m.phase==='land'&&t.owner===1-m.current,'침략할 적 영토가 아닙니다.');
  const a=CARDS[attackerId],d=CARDS[t.cardId],item=itemId?CARDS[itemId]:null;
  ensure(a?.kind==='unit'&&p.hand.includes(attackerId),'공격 유닛 손패 없음');
  if(item){ensure(item.kind==='item'&&p.hand.includes(itemId),'아이템 손패 없음');}
- const attack=a.atk+tileBonus(t,a)+(item&&item.id!=='stone-shield'&&item.id!=='mirror-armor'?item.power:0);
- const defenderHP=d.hp+tileBonus(t,d)+(t.level-1)*3+neighborBonus(m,t,t.owner);
- const defense=a.hp+(item&&(['stone-shield','mirror-armor'].includes(item.id))?item.power:0);
- const retaliation=d.atk+tileBonus(t,d);
- return {attack,defenderHP,defense,retaliation,success:attack>=defenderHP&&defense>retaliation,cost:a.cost+(item?.cost||0),toll:t.level*35+20};
+ const am=attackMods(a,t), dm=defendMods(m,t);
+ const attack=a.atk+tileBonus(t,a)+am.atk+(item&&item.id!=='stone-shield'&&item.id!=='mirror-armor'?item.power:0);
+ const defenderHP=d.hp+tileBonus(t,d)+(t.level-1)*3+neighborBonus(m,t,t.owner)+dm.hp+auraHP(m,t);
+ const defense=a.hp+am.def+(item&&(['stone-shield','mirror-armor'].includes(item.id))?item.power:0);
+ const retaliation=d.atk+tileBonus(t,d)+dm.ret;
+ return {attack,defenderHP,defense,retaliation,success:attack>=defenderHP&&defense>retaliation,cost:a.cost+(item?.cost||0),toll:tollOf(m,t),stay:am.stay};
 }
 export function place(s,id){const m=s.match;ensure(placementOptions(s).includes(id),'배치 불가능');const p=m.players[m.current],t=m.tiles[p.pos],c=CARDS[id];p.gold-=c.cost;removeHand(p,id);
  Object.assign(t,{owner:m.current,cardId:id,level:1});log(s,`[${m.current?'AI':'나'}] ${c.name} 배치 (${c.element})`);completeTurn(s);
@@ -87,7 +145,7 @@ export function upgrade(s){const m=s.match;ensure(m&&m.phase==='land','진행 �
 }
 export function invade(s,cardId,itemId=null){const m=s.match;const p=m.players[m.current],t=m.tiles[p.pos];const v=combatPreview(s,cardId,itemId);ensure(p.gold>=v.cost,'공격 비용 부족');
  p.gold-=v.cost;removeHand(p,cardId);if(itemId)removeHand(p,itemId);
- if(v.success){const prior=m.players[t.owner];Object.assign(t,{owner:m.current,cardId,level:1});
+ if(v.success){Object.assign(t,{owner:m.current,cardId,level:v.stay||1});
    log(s,`[${m.current?'AI':'나'}] ${CARDS[cardId].name} 침략 성공 (${v.attack}/${v.defenderHP})`);
  } else {const paid=Math.min(p.gold,v.toll);p.gold-=paid;m.players[t.owner].gold+=paid;
    log(s,`[${m.current?'AI':'나'}] 침략 실패 (${v.attack}/${v.defenderHP}) · 통행료 ${paid}G`);
@@ -95,7 +153,7 @@ export function invade(s,cardId,itemId=null){const m=s.match;const p=m.players[m
  completeTurn(s);return v.success;
 }
 export function pass(s){const m=s.match;ensure(m&&m.phase==='land','행동 종료 불가');const t=getLandedTile(s),p=m.players[m.current];
- if(t.owner!==null&&t.owner!==m.current){const toll=t.level*35+20;const paid=Math.min(toll,p.gold);p.gold-=paid;m.players[t.owner].gold+=paid;log(s,`[${m.current?'AI':'나'}] 통행료 ${paid}G 지불`);}
+ if(t.owner!==null&&t.owner!==m.current){const toll=tollOf(m,t);const paid=Math.min(toll,p.gold);p.gold-=paid;m.players[t.owner].gold+=paid;log(s,`[${m.current?'AI':'나'}] 통행료 ${paid}G 지불`);}
  else log(s,`[${m.current?'AI':'나'}] 영토 행동 생략`);
  completeTurn(s);
 }
@@ -133,14 +191,15 @@ export function autoTurn(s){
     const ranked=opts.map(id=>{
       const c=CARDS[id];
       const match=tileBonus(t,c);
-      return {id,score:c.hp*1.1+c.atk*0.9+match*8-c.cost*0.08+(stage.style==='fortress'?c.hp*0.5:0)+(stage.style==='aggressive'?c.atk*0.4:0)};
+      const rare={U:6,R:10,E:16,L:22}[c.rarity]||0;
+      return {id,score:c.hp*1.1+c.atk*0.9+match*8-c.cost*0.08+(c.trait?rare:0)+(match&&c.trait?12:0)+(stage.style==='fortress'?c.hp*0.5:0)+(stage.style==='aggressive'?c.atk*0.4:0)};
     }).sort((a,b)=>b.score-a.score);
     const reserve=stage.style==='aggressive'?8:20;
     if(ranked.length&&p.gold>=CARDS[ranked[0].id].cost+reserve){place(s,ranked[0].id);return;}
   } else if(t.owner===m.current){
     const cost=45*t.level;
     // Level 1 stays crackable unless the owner is actually rich. Fortress still walls up later.
-    const reserve=stage.style==='fortress'?(t.level===1?120:70):stage.style==='aggressive'?100:80;
+    const reserve=(stage.style==='fortress'?(t.level===1?120:70):stage.style==='aggressive'?100:80)-(CARDS[t.cardId]?.trait?30:0);
     if(t.level<3&&p.gold>=cost+reserve){upgrade(s);return;}
   } else {
     const items=availableItem(s),units=p.hand.filter(id=>CARDS[id].kind==='unit');
