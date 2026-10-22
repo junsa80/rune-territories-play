@@ -1,5 +1,5 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.30';
-import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement} from './game.js?v=0.1.30';
+import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.31';
+import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement} from './game.js?v=0.1.31';
 import {unlockAudio, sfx, toggleMute, muted} from './audio.js';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
@@ -44,7 +44,7 @@ function cardMini(id,controls='',attrs='',chosen=false){const c=CARDS[id];const 
  return `<div class="mini-card el-${c.element}${fit?' fit':''}${chosen?' chosen':''}" ${attrs}>${artTag(cardSrc(id),c.name,'card-art')}<div class="card-title"><span class="el-chip ${c.element}">${ELEMENTS[c.element]}</span>${badge(c.rarity)} <b>${esc(c.name)}</b></div><div class="small">${kind(c)} · ${c.cost}G${c.kind==='unit'?` · 공격 ${c.atk} / 생명 ${c.hp}`:''}${fit?' · <b class="fit-label">이 땅에 맞음</b>':''}</div><div class="card-desc">${esc(withTrait(c))}</div>${controls}</div>`;
 }
 function shownLand(){const m=save.match;if(!m||m.ended||fx)return null;if(m.phase==='strike')return m.tiles[m.players[1].pos];if(m.phase==='land'&&m.current===0)return m.tiles[m.players[0].pos];return null;}
-function sideCard(id,who,support,hidden){const c=id&&CARDS[id];const sup=hidden?'<div class="back-card">가려짐</div>':`<p class="small">지원 ${esc(support?CARDS[support].name:'없음')}</p>`;
+function sideCard(id,who,support,hidden){const c=id&&CARDS[id];const sup=hidden?'<div class="back-card">장비 ?</div>':`<p class="small">지원 ${esc(support?CARDS[support].name:'없음')}</p>`;
  if(!c) return `<div class="side unknown"><b>${who}</b><p>유닛을 고르세요</p>${sup}</div>`;
  return `<div class="side el-${c.element} who-${who==='나'?'me':'foe'}"><div class="who">${who}</div>${artTag(cardSrc(c.id),c.name,'card-art')}<span class="el-chip ${c.element}">${ELEMENTS[c.element]}</span><b>${esc(c.name)}</b><p class="small">공격 ${c.atk} · 생명 ${c.hp}</p>${sup}</div>`;
 }
@@ -116,6 +116,18 @@ function supportChoices(extra=0){
 function supportButtons(ids){
   return [btn('지원 없음','select-item','data-id=""',!selectedItem?'chosen':'') , ...ids.map(id=>btn(CARDS[id].name,'select-item',`data-id="${id}"`,selectedItem===id?'chosen':''))].join('');
 }
+function forecastHTML(v){
+  if(!v) return '<p class="small">유닛을 고르면 상대 장비를 빼고 계산한 예측이 나옵니다.</p>';
+  return `<p class="forecast ${v.success?'win':'lose'}">장비 없음 · 공격 ${v.attack} / 생명 ${v.defenderHP} · 반격 ${v.retaliation} / 내 생명 ${v.defense} · <b>${v.success?'성공':'실패'}</b> · 실패 시 ${v.toll}G</p><p class="small">상대가 장비를 쓰는지만 가려져 있습니다. 쓰면 이 숫자가 바뀔 수 있습니다.</p>`;
+}
+function openForecast(m){
+  try{
+    const mine=selectedItem&&CARDS[selectedItem]?.kind==='item'?selectedItem:null;
+    if(m.phase==='strike') return combatPreview(save,m.strike.unitId,null,mine);
+    if(!selectedUnit) return null;
+    return combatPreview(save,selectedUnit,mine,null);
+  }catch(e){return null;}
+}
 function fightControls(m){const p=m.players[0],t=getLandedTile(save);
  const units=unitPool('invade');
  ensureSelected(units);
@@ -127,14 +139,14 @@ function fightControls(m){const p=m.players[0],t=getLandedTile(save);
  const options=units.map(id=>btn(`${CARDS[id].element===t.element&&CARDS[id].element!=='neutral'?'● ':''}${CARDS[id].name}`,'select-unit',`data-id="${id}"`,id===selectedUnit?'chosen':'')).join('');
  const go=`${btn('침략 확정','invade',`${can?'':'disabled'} data-id="${selectedUnit||''}"`,'primary')}${units.length>1?btn('다음 유닛','next-unit','data-pool="invade"','outline'):''}${btn('퇴각','pass','','outline')}`;
  const me=selectedUnit?selectedUnit:null;
- return `<div class="prompt battle-prompt"><div class="versus">${sideCard(t.cardId,'적',null,true)}${sideCard(me,'나',selectedItem,false)}</div><p class="small">누가 이길지는 모릅니다. 주문·장비는 확정 뒤에 공개됩니다.</p><div class="go">${go}</div><div class="choices unit-choices">${options||'손패에 침략용 유닛이 없습니다.'}</div><div class="choices">${supportButtons(supports)}</div></div>`;
+ return `<div class="prompt battle-prompt"><div class="versus">${sideCard(t.cardId,'적',null,true)}${sideCard(me,'나',selectedItem,false)}</div>${forecastHTML(openForecast(m))}<div class="go">${go}</div><div class="choices unit-choices">${options||'손패에 침략용 유닛이 없습니다.'}</div><div class="choices">${supportButtons(supports)}</div></div>`;
 }
 function defenseControls(m){
   const supports=supportChoices(0);
   if(selectedItem&&!supports.includes(selectedItem))selectedItem=null;
   const unit=CARDS[m.strike.unitId];
   const tile=m.tiles[m.players[1].pos];
-  return `<div class="prompt battle-prompt"><div class="versus">${sideCard(unit.id,'적',null,true)}${sideCard(tile.cardId,'나',selectedItem,false)}</div><p class="small">${esc(unit.name)}이 침략해 왔다. 상대 지원은 가려져 있다. 누가 이길지는 모릅니다.</p><div class="go">${btn('수비 확정','answer','','primary')}</div><div class="choices">${supportButtons(supports)}</div></div>`;
+  return `<div class="prompt battle-prompt"><div class="versus">${sideCard(unit.id,'적',null,true)}${sideCard(tile.cardId,'나',selectedItem,false)}</div>${forecastHTML(openForecast(m))}<div class="go">${btn('수비 확정','answer','','primary')}</div><div class="choices">${supportButtons(supports)}</div></div>`;
 }
 function turnUI(m){const p=m.players[0];if(fx) return `<div class="prompt"><b>${fx.who?'상대':'나'} ${fx.rolling?'주사위를 굴리는 중':'이동 중'} · ${fx.face}</b></div>`;if(m.ended)return `<div class="prompt"><div class="go">${btn('캠페인으로','finish','','primary')}</div><div class="prompt-main"><b>${m.winner===0?'승리':'패배'}</b><p class="small">${esc(m.reason)} · ${goldScore(m,0)} : ${goldScore(m,1)}</p></div></div>`;
  if(m.phase==='strike') return defenseControls(m);
