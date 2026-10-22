@@ -39,7 +39,7 @@ export function startMatch(s,stageId,difficulty='normal') {
   ensure(stageId<=s.progress.highestUnlocked,'아직 개방되지 않은 스테이지');
   ensure(['normal','hard'].includes(difficulty),'지원하지 않는 난이도');
   ensure(difficulty!=='hard'||s.progress.cleared.includes(stageId),'어려움 난이도는 해당 스테이지 최초 클리어 후 개방됩니다.');
-  const mkPlayer=(id,deck,pos,bonus=0)=>({id,pos,gold:220+bonus,deck:shuffle(s,deck),hand:[],discard:[],spellUsed:false});
+  const mkPlayer=(id,deck,pos,bonus=0)=>({id,pos,gold:220+bonus,deck:shuffle(s,deck),hand:[],discard:[],spellUsed:false,placeCut:0});
   const aiBonus=difficulty==='hard'?80:0;
   s.match={stageId,difficulty,round:1,phase:'prep',current:0,steps:0,turns:0,ended:false,
     players:[mkPlayer(0,s.deck,0),mkPlayer(1,stage.enemyDeck,8,aiBonus)],
@@ -52,9 +52,18 @@ export function goldScore(m,id) {const p=m.players[id];return p.gold+m.tiles.fil
 export function ownerLands(m,id) {return m.tiles.filter(t=>t.owner===id);}
 export function getLandedTile(s){ensure(!!s.match,'진행 중 대전 없음');return s.match.tiles[s.match.players[s.match.current].pos];}
 export function legalSpell(s,id){const m=s.match;const p=m?.players[m.current];return !!(m&&m.phase==='prep'&&p.hand.includes(id)&&CARDS[id]?.kind==='spell'&&!p.spellUsed&&p.gold>=CARDS[id].cost);}
+function itemMods(item, attacker, tile){
+  if(!item) return {atk:0,def:0};
+  if(item.bonus==='def') return {atk:0, def:item.power};
+  if(item.bonus==='elem-atk') return {atk:attacker.element!=='neutral'&&attacker.element===tile.element?item.power:1, def:0};
+  return {atk:item.power||0, def:0};
+}
 export function playSpell(s,id){ensure(legalSpell(s,id),'이 시점에 사용할 수 없는 주문');const m=s.match,p=m.players[m.current],c=CARDS[id];p.gold-=c.cost;
  if(c.effect==='gainGold')p.gold+=c.power;
  if(c.effect==='drain')m.players[1-m.current].gold=Math.max(0,m.players[1-m.current].gold-c.power);
+ if(c.effect==='wage'){const lands=ownerLands(m,p.id).length;p.gold+=lands>=3?c.power:c.power2;}
+ if(c.effect==='levelPay'){const levels=ownerLands(m,p.id).reduce((a,t)=>a+t.level,0);p.gold+=levels*c.power;}
+ if(c.effect==='placeCut')p.placeCut=(p.placeCut||0)+c.power;
  removeHand(p,id);p.spellUsed=true;log(s,`[${m.current?'AI':'나'}] ${c.name} 사용`);
 }
 export function roll(s){const m=s.match;ensure(m&&m.phase==='prep','굴릴 수 없는 상태');const p=m.players[m.current];const steps=randInt(s,1,4);m.steps=steps;m.salaryNotice=0;
@@ -63,7 +72,7 @@ export function roll(s){const m=s.match;ensure(m&&m.phase==='prep','굴릴 수 �
 }
 export function placementOptions(s,who=s.match?.current){const m=s.match,p=m.players[who],t=m.tiles[p.pos];
  if(m.phase!=='land'||t.index===0||t.index===8||t.owner!==null)return [];
- return p.hand.filter(id=>CARDS[id].kind==='unit'&&CARDS[id].cost<=p.gold);
+ return p.hand.filter(id=>{const c=CARDS[id];return c.kind==='unit'&&c.cost-Math.min(c.cost,p.placeCut||0)<=p.gold;});
 }
 export function tileBonus(t,c) {return c.element!=='neutral'&&t.element===c.element?3:0;}
 function sides(m,t){return [m.tiles[(t.index+15)%16], m.tiles[(t.index+1)%16]];}
@@ -87,6 +96,8 @@ export function defendMods(m,t,level=t.level){
     case 'star-scale': return t.element==='fire'?{hp:2*level, ret:2*level, toll:0}:{hp:level, ret:0, toll:0};
     case 'tide-read': return {hp:(t.element==='water'?2:1)*level, ret:0, toll:t.element==='water'?8*level:0};
     case 'world-root': return {hp:level, ret:0, toll:4*level};
+    case 'bastion-hold': return {hp:level, ret:0, toll:0};
+    case 'slow-invest': return {hp:level, ret:0, toll:2*level};
     default: return z;
   }
 }
@@ -129,14 +140,14 @@ export function combatPreview(s,attackerId,itemId=null){const m=s.match,p=m.play
  const a=CARDS[attackerId],d=CARDS[t.cardId],item=itemId?CARDS[itemId]:null;
  ensure(a?.kind==='unit'&&p.hand.includes(attackerId),'공격 유닛 손패 없음');
  if(item){ensure(item.kind==='item'&&p.hand.includes(itemId),'아이템 손패 없음');}
- const am=attackMods(a,t), dm=defendMods(m,t);
- const attack=a.atk+tileBonus(t,a)+am.atk+(item&&item.id!=='stone-shield'&&item.id!=='mirror-armor'?item.power:0);
- const defenderHP=d.hp+tileBonus(t,d)+(t.level-1)*3+neighborBonus(m,t,t.owner)+dm.hp+auraHP(m,t);
- const defense=a.hp+am.def+(item&&(['stone-shield','mirror-armor'].includes(item.id))?item.power:0);
+ const am=attackMods(a,t), dm=defendMods(m,t), im=itemMods(item,a,t);
+ const attack=a.atk+tileBonus(t,a)+am.atk+im.atk;
+ const defenderHP=d.hp+tileBonus(t,d)+(t.level-1)*(d.grow??3)+neighborBonus(m,t,t.owner)+dm.hp+auraHP(m,t);
+ const defense=a.hp+am.def+im.def;
  const retaliation=d.atk+tileBonus(t,d)+dm.ret;
  return {attack,defenderHP,defense,retaliation,success:attack>=defenderHP&&defense>retaliation,cost:a.cost+(item?.cost||0),toll:tollOf(m,t),stay:am.stay};
 }
-export function place(s,id){const m=s.match;ensure(placementOptions(s).includes(id),'배치 불가능');const p=m.players[m.current],t=m.tiles[p.pos],c=CARDS[id];p.gold-=c.cost;removeHand(p,id);
+export function place(s,id){const m=s.match;ensure(placementOptions(s).includes(id),'배치 불가능');const p=m.players[m.current],t=m.tiles[p.pos],c=CARDS[id];const cut=Math.min(c.cost,p.placeCut||0);p.gold-=c.cost-cut;p.placeCut=0;removeHand(p,id);
  Object.assign(t,{owner:m.current,cardId:id,level:1});log(s,`[${m.current?'AI':'나'}] ${c.name} 배치 (${c.element})`);completeTurn(s);
 }
 export function upgrade(s){const m=s.match;ensure(m&&m.phase==='land','진행 상태 오류');const p=m.players[m.current],t=m.tiles[p.pos];const cost=45*t.level;
@@ -175,6 +186,9 @@ function bestSpell(s){
     let score=-999;
     if(c.effect==='gainGold') score=c.power-c.cost;
     else if(c.effect==='drain') score=Math.min(c.power,foe.gold)-c.cost-(p.gold<70?40:0);
+    else if(c.effect==='wage'){const lands=ownerLands(m,p.id).length;score=(lands>=3?c.power:c.power2)-c.cost;}
+    else if(c.effect==='levelPay'){const levels=ownerLands(m,p.id).reduce((a,t)=>a+t.level,0);score=levels*c.power-c.cost;}
+    else if(c.effect==='placeCut') score=Math.min(c.power,28)-c.cost;
     if(score>bestScore){bestScore=score;best=id;}
   }
   return best;
@@ -195,7 +209,9 @@ export function autoTurn(s){
       return {id,score:c.hp*1.1+c.atk*0.9+match*8-c.cost*0.08+(c.trait?rare:0)+(match&&c.trait?12:0)+(stage.style==='fortress'?c.hp*0.5:0)+(stage.style==='aggressive'?c.atk*0.4:0)};
     }).sort((a,b)=>b.score-a.score);
     const reserve=stage.style==='aggressive'?8:20;
-    if(ranked.length&&p.gold>=CARDS[ranked[0].id].cost+reserve){place(s,ranked[0].id);return;}
+    const pick=ranked.length?CARDS[ranked[0].id]:null;
+    const pay=pick?pick.cost-Math.min(pick.cost,p.placeCut||0):0;
+    if(pick&&p.gold>=pay+reserve){place(s,ranked[0].id);return;}
   } else if(t.owner===m.current){
     const cost=45*t.level;
     // Level 1 stays crackable unless the owner is actually rich. Fortress still walls up later.
@@ -276,6 +292,11 @@ export function loadSave(raw){const s=typeof raw==='string'?JSON.parse(raw):raw;
  ensure(Number.isInteger(s.seed)&&s.seed>=0,'저장 시드 오류');ensure(Array.isArray(s.deck)&&s.collection&&s.progress&&Array.isArray(s.log),'저장 데이터 필수 항목 누락');
  ensure(s.deck.every(id=>!!CARDS[id]),'알 수 없는 카드');ensure(Object.entries(s.collection).every(([id,v])=>!!CARDS[id]&&Number.isInteger(v)&&v>=0&&v<=COPY_LIMIT),'카드 보유 수량 오류');
  ensure(Number.isSafeInteger(s.dust)&&s.dust>=0&&Number.isSafeInteger(s.tickets)&&s.tickets>=0,'재료/선택권 오류');
- // Alpha intentionally does not import a live match: compatibility of mid-match schemas is not promised.
+ if(s.deck.length!==DECK_SIZE){
+  const need={}; for(const id of STARTER_DECK) need[id]=(need[id]||0)+1;
+  for(const [id,n] of Object.entries(need)) s.collection[id]=Math.max(s.collection[id]||0,n);
+  s.deck=[...STARTER_DECK];
+  s.log.unshift('[이전] 덱 제한이 40장이 되어 시작 덱으로 맞췄습니다. 모아 둔 카드는 남습니다.');
+ }
  s.match=null;s.lastReward=null;return s;
 }
