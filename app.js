@@ -1,5 +1,5 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.40';
-import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf} from './game.js?v=0.1.40';
+import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES} from './data.js?v=0.1.41';
+import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf} from './game.js?v=0.1.41';
 import {unlockAudio, sfx, toggleMute, muted} from './audio.js';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
@@ -177,7 +177,8 @@ function fightControls(m){const p=m.players[0],t=getLandedTile(save);
  const invadeBtn=btn('침략 확정','invade',`${can?'':'disabled'} data-id="${selectedUnit||''}"`,selectedOk?'primary':'outline');
  const leaveBtn=btn(`통행료 ${toll}G 내고 지나감`,'pass','',selectedOk?'outline':'primary');
  const go=`${selectedOk?invadeBtn:leaveBtn}${selectedOk?leaveBtn:invadeBtn}${units.length>1?btn('다음 유닛','next-unit','data-pool="invade"','outline'):''}`;
- const coach=selectedOk?'이 유닛이면 장비를 빼도 뚫립니다. 상대 장비로 결과가 바뀔 수 있습니다.':winning.length?'고른 유닛으로는 막힙니다. 점 있는 카드로 바꾸세요.':'지금 손패로는 이 땅을 못 뚫습니다. 지나가면 통행료만 냅니다.';
+ const hold=!selectedUnit?'':CARDS[selectedUnit].element===t.element&&CARDS[selectedUnit].element!=='neutral'?`성공하면 이 칸에 남고 이후 생명 +${Math.max(1,t.level||1)}.`:'성공해도 속성이 달라 이후 생명 보너스는 없습니다.';
+ const coach=(selectedOk?'공격이 생명을 넘습니다. 상대 장비로 바뀔 수 있습니다.':winning.length?'이 카드는 못 넘습니다. 점 있는 카드로 바꾸세요.':'지금 손패로는 못 넘습니다. 지나가면 통행료만 냅니다.')+` ${hold} 실패하면 카드는 사라지고 통행료를 냅니다.`;
  const me=selectedUnit?selectedUnit:null;
  return `<div class="prompt battle-prompt"><div class="versus">${sideCard(t.cardId,'적',null,true)}${sideCard(me,'나',selectedItem,false)}</div>${forecastHTML(openForecast(m),m)}<p class="small">${coach}</p><div class="go">${go}</div><div class="choices unit-choices">${options||'손패에 침략용 유닛이 없습니다.'}</div><div class="choices">${supportButtons(supports)}</div></div>`;
 }
