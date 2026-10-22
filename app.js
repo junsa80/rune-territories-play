@@ -1,5 +1,5 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS} from './data.js?v=0.1.27';
-import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement} from './game.js?v=0.1.27';
+import {VERSION, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, makeBoard, STAGE_PACKS, ACHIEVEMENTS} from './data.js?v=0.1.28';
+import {newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement} from './game.js?v=0.1.28';
 import {unlockAudio, sfx, toggleMute, muted} from './audio.js';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
