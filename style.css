@@ -114,3 +114,77 @@ img.pawn.ai{border-color:#ff9d7b}
   .story-screen h1{font-size:22px}
   .story-screen .go button{min-height:52px;font-size:16px}
 }
+.tile.el-fire{background:#8a3038}.tile.el-water{background:#1c6494}.tile.el-earth{background:#3d6d34}.tile.el-air{background:#4d3d8a}.tile.el-neutral{background:#3c4654}
+.tile.event{background:#3d3420;border-color:#e6c56a}
+.el-chip{display:inline-block;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:800;line-height:1.4;background:#314556;color:#fff;vertical-align:middle}
+.el-chip.fire,.mini-card.el-fire .el-chip{background:#a33b32}.el-chip.water,.mini-card.el-water .el-chip{background:#1d6ea8}.el-chip.earth,.mini-card.el-earth .el-chip{background:#4d7a32}.el-chip.air,.mini-card.el-air .el-chip{background:#6a4db8}.el-chip.neutral{background:#5c6773}.el-chip.event{background:#8a6a22}
+.who{font-size:11px;font-weight:900;padding:1px 5px;border-radius:5px;line-height:1.3}
+.owner-0 .who{background:#083844;color:#c8f6ff}
+.owner-1 .who{background:#4a1c16;color:#ffd2c6}
+.tile-unit i{font-style:normal;color:#ffe09a}
+.mini-card{border-left:8px solid #8b95a1}
+.mini-card.el-fire{border-left-color:#e15b4c;background:#3a292c}
+.mini-card.el-water{border-left-color:#3aa0e6;background:#1b3344}
+.mini-card.el-earth{border-left-color:#8fbf45;background:#243226}
+.mini-card.el-air{border-left-color:#b08cff;background:#2c2842}
+.mini-card.el-neutral{border-left-color:#b7c0ca}
+.mini-card.fit{outline:2px solid #f8d78d}
+.fit-label{color:#f8d78d}
+.versus{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
+.side{background:#172838;border:2px solid #476783;border-radius:12px;padding:6px;min-width:0;text-align:center}
+.side.who-me{border-color:#7be7f5}.side.who-foe{border-color:#ff9078}
+.versus .card-art{height:64px;margin-bottom:4px}
+.back-card{margin-top:4px;background:#101820;color:#d7c27a;border:1px dashed #d7c27a;border-radius:8px;padding:8px 4px;font-weight:800}
+.battle-sheet h1.win{color:#9cf0be}.battle-sheet h1.lose{color:#ffb4ab}
+.battle-prompt .go{margin-top:6px}
+@media(max-width:720px){
+  .versus .card-art{height:46px}
+  .side{padding:4px}
+  .el-chip,.who{font-size:10px}
+  body.ingame .tile-unit{font-size:10px}
+}
+
+.tile.here{outline:3px solid #fff6c8;outline-offset:-3px;z-index:3;box-shadow:0 0 0 3px #f8d78d,0 0 16px #f8d78d;animation:herePulse 1s ease-in-out infinite}
+.here-flag{position:absolute;left:2px;bottom:2px;background:#f8d78d;color:#2a220c;font-size:9px;font-weight:900;border-radius:4px;padding:0 3px;z-index:4}
+.tile.matched{box-shadow:inset 0 0 0 3px #fff,0 0 10px #fff8}
+.tile.matched.el-fire{box-shadow:inset 0 0 0 3px #ffb199,0 0 12px #ff7a59}
+.tile.matched.el-water{box-shadow:inset 0 0 0 3px #b9ecff,0 0 12px #67d4ff}
+.tile.matched.el-earth{box-shadow:inset 0 0 0 3px #d6ffb0,0 0 12px #9be07a}
+.tile.matched.el-air{box-shadow:inset 0 0 0 3px #e4d4ff,0 0 12px #c9a6ff}
+.match-flag{background:#fff;color:#1b2430;font-size:9px;font-weight:900;border-radius:4px;padding:0 3px}
+.tile.struck{animation:struck .55s ease}
+img.pawn.active{width:22px;height:22px;z-index:5;box-shadow:0 0 0 2px #fff}
+.gold-note{margin:6px 0 0;padding:8px 10px;border-radius:10px;background:#3a3118;color:#ffe7a3;font-weight:800;text-align:center}
+.clash{font-size:22px;font-weight:900;text-align:center;margin:8px 0}
+.clash span{color:#aebdca;font-size:13px;font-weight:700}
+.battle-sheet.flash-win{animation:winFlash .7s ease}
+.battle-sheet.flash-lose{animation:loseFlash .7s ease}
+.battle-sheet .side{animation:cardIn .45s ease both}
+.battle-sheet .side:nth-child(2){animation-delay:.12s}
+.mini-card.fit{outline:3px solid #f8d78d;box-shadow:0 0 12px #f8d78d88;animation:herePulse 1.2s ease-in-out infinite}
+.reward-grid{display:flex;flex-wrap:wrap;gap:10px}
+.flip-card{width:132px;height:176px;perspective:800px}
+.flip-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;animation:flipOpen .7s ease forwards;animation-delay:inherit}
+.flip-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:12px;padding:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.flip-face.back{background:#1a140c;color:#f8d78d;border:2px solid #f8d78d;font-size:28px}
+.flip-face.back span{font-size:12px;font-weight:800}
+.flip-face.front{background:#24384c;border:1px solid #6a8092;transform:rotateY(180deg);text-align:center}
+.flip-face .card-art{height:88px}
+@keyframes herePulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.28)}}
+@keyframes struck{0%{transform:scale(1)}30%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes winFlash{0%{box-shadow:0 0 0 0 #9cf0be}40%{box-shadow:0 0 24px 6px #9cf0be88}100%{box-shadow:none}}
+@keyframes loseFlash{0%{box-shadow:0 0 0 0 #ffb4ab}40%{box-shadow:0 0 24px 6px #ffb4ab88}100%{box-shadow:none}}
+@keyframes cardIn{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes flipOpen{from{transform:rotateY(0)}to{transform:rotateY(180deg)}}
+.game-area{position:relative}
+.act-banner{position:absolute;left:50%;top:12%;transform:translateX(-50%);z-index:8;width:min(240px,70%);pointer-events:none;text-align:center;background:#17283acc;border:2px solid #f8d78d;border-radius:14px;padding:10px;animation:actPop .8s ease}
+.act-banner .card-art{height:72px;margin:4px auto}
+.act-banner.kind-spell{border-color:#9ad7ff;box-shadow:0 0 18px #67d4ff88}
+.act-banner.kind-strike{border-color:#ffb199;box-shadow:0 0 18px #ff7a5988;animation:lunge .45s ease}
+.act-banner.kind-blocked{border-color:#ffb4ab}
+.act-banner.kind-retreat{border-color:#d7c27a;animation:retreat .6s ease}
+.spell-line{color:#9ad7ff;font-weight:800;text-align:center}
+.battle-sheet .versus .side:first-child{animation:lunge .45s ease both}
+@keyframes actPop{from{opacity:0;transform:translateX(-50%) scale(.8)}to{opacity:1;transform:translateX(-50%) scale(1)}}
+@keyframes lunge{0%{transform:translateX(0)}40%{transform:translateX(18px) scale(1.06)}100%{transform:translateX(0)}}
+@keyframes retreat{0%{transform:translateX(-50%) translateX(0)}100%{transform:translateX(-50%) translateX(-28px);opacity:.2}}
