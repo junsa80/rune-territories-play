@@ -1,6 +1,6 @@
-import {VERSION, UI_BUILD, HARD_HINTS, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, TRIO_STAGE, TRIALS, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES, trialReward} from './data.js?v=0.1.46';
-import {stageById, trioOpen, trialOpen, newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf, neighborBonus, tileBonus, storeDeck, restoreDeck} from './game.js?v=0.1.46';
-import {unlockAudio, sfx, toggleMute, muted} from './audio.js?v=0.1.46';
+import {VERSION, UI_BUILD, HARD_HINTS, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, TRIO_STAGE, TRIALS, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES, trialReward} from './data.js?v=0.1.47';
+import {stageById, trioOpen, trialOpen, newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf, neighborBonus, tileBonus, storeDeck, restoreDeck} from './game.js?v=0.1.47';
+import {unlockAudio, sfx, toggleMute, muted} from './audio.js?v=0.1.47';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
 let save, recoveryRaw=null, storageAvailable=true, initialRaw=null, droppedMatch=false;
@@ -30,7 +30,7 @@ function keepReward(r){
 function loadForLocal(s){const m=s.match,reward=keepReward(s.lastReward);const v=loadSave(s);if(reward)v.lastReward=reward;if(matchLooksPlayable(m))v.match=m;else if(m)droppedMatch=true;return v;}
 try{save=initialRaw?loadForLocal(JSON.parse(initialRaw)):newSave();}catch(e){console.warn('Save read error, original retained:',e);recoveryRaw=initialRaw;save=newSave();}
 let page=save.match?'game':'home',difficulty='normal',stageSelected=1,previewStage=1,selectedUnit=null,selectedItem=null,sheet=null,story=null,status=!storageAvailable?'로컬 저장소를 사용할 수 없어 자동 저장이 비활성화되었습니다. JSON 백업을 이용하세요.':droppedMatch?'저장된 대전은 이어갈 수 없어 캠페인 기록만 복구했습니다.':'';
-if(!save.match&&save.story&&!save.story.prologue){story={id:'prologue',part:'prologue',page:0,then:null};page='story';}
+if(!save.match&&save.story&&!save.story.prologue){story={id:'prologue',part:'prologue',page:0,then:null};page='title';}
 let preserveScroll=false;
 let previewDifficulty='normal';
 let collectionElement='all',collectionKind='all',collectionScope='owned',collectionSort='cost',mapTile=null;
@@ -293,6 +293,8 @@ function closeStory(finished=true){
   if(then&&then.act==='start'){beginMatch(then.stage, then.diff);return;}
   page=wasOutro&&rewardCards().length?'rewards':'home';
 }
+// 타이틀·키아트 (GrokBot 2026-10-22): 프롤로그 전 한 번. 저장 필드 없음.
+function titleHTML(){return `<section class="section title-art"><img class="keyart" src="art/keyart.webp" alt="룬 영토 키아트: 룬 고리 판 앞의 여행자들" width="780" height="439"><div class="title-copy"><h1>룬 영토</h1><p class="title-tag">고리를 걷고, 땅에 이름을 붙이고, 카드로 지켜라.</p><p class="small">주사위 · 배치 · 침략 · 덱 40장. 1:1 캠페인과 3인·4인 시범.</p>${btn('이야기 시작','title-start','','primary')}</div></section>`;}
 function storyHTML(){
   const pack=storyPack(); if(!pack) return '';
   const beat=pack.pages[Math.min(story.page, pack.pages.length-1)];
@@ -338,7 +340,7 @@ function render(){
   persist();
   document.body.classList.toggle('ingame', page==='game'&&!!save.match&&!save.match.ended);
   if(recoveryRaw!==null){root.innerHTML=nav()+`<section class="notice"><h2>이전 저장 데이터 보호</h2><p>현재 프로그램과 호환되지 않는 저장이 발견되어 기존 데이터를 덮어쓰지 않았습니다. 먼저 원본을 내려받아 보관하세요.</p>${btn('기존 JSON 내려받기','recover-export')}${btn('백업 확인 후 새 게임 시작','recover-reset','','danger')}</section>`;preserveScroll=false;return;}
-  root.innerHTML=nav()+(status?`<div class="status" role="alert">${esc(status)} ${btn('닫기','dismiss','','quiet')}</div>`:'')+(page==='rewards'?revealHTML():page==='home'?home():page==='deckcheck'?deckCheck():page==='game'?game():page==='story'?storyHTML():page==='collection'?collection():page==='logs'?logs():backup())+sheetHTML()+mapSheetHTML()+(page==='game'?'':`<footer>Rune Territories · Original prototype · UI ${UI_BUILD}</footer>`);
+  root.innerHTML=nav()+(status?`<div class="status" role="alert">${esc(status)} ${btn('닫기','dismiss','','quiet')}</div>`:'')+(page==='rewards'?revealHTML():page==='home'?home():page==='deckcheck'?deckCheck():page==='game'?game():page==='title'?titleHTML():page==='story'?storyHTML():page==='collection'?collection():page==='logs'?logs():backup())+sheetHTML()+mapSheetHTML()+(page==='game'?'':`<footer>Rune Territories · Original prototype · UI ${UI_BUILD}</footer>`);
   if(preserveScroll){
     const apply=()=>{window.scrollTo(0,y);const h=document.querySelector('.hand');if(h)h.scrollLeft=hx;const row=document.querySelector('.hand-row');if(row)row.scrollLeft=rx;const g=document.querySelector('.game-side');if(g)g.scrollTop=sy;};
     apply(); requestAnimationFrame(apply);
@@ -372,6 +374,7 @@ function doAction(act,id,el){
  case 'logs':page='logs';break;
  case 'backup':page='backup';break;
  case 'dismiss':status='';break;
+ case 'title-start':page='story';break;
  case 'mute':toggleMute();sfx('tap');break;
  case 'deckcheck':previewDifficulty='normal';previewStage=Number(el.dataset.stage)||1;page='deckcheck';sheet=null;break;
  case 'inspect':sheet={id,intent:el.dataset.intent||'view'};if(sheet.intent==='invade')selectedUnit=id;if(sheet.intent==='item')selectedItem=id;sfx('tap');break;
