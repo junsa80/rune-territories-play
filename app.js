@@ -1,6 +1,6 @@
-import {VERSION, UI_BUILD, HARD_HINTS, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, TRIO_STAGE, TRIALS, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES, trialReward} from './data.js?v=0.1.50';
-import {stageById, trioOpen, trialOpen, newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf, neighborBonus, tileBonus, storeDeck, restoreDeck} from './game.js?v=0.1.50';
-import {unlockAudio, sfx, toggleMute, muted} from './audio.js?v=0.1.50';
+import {VERSION, UI_BUILD, HARD_HINTS, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, TRIO_STAGE, TRIALS, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES, trialReward} from './data.js?v=0.1.51';
+import {stageById, trioOpen, trialOpen, newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf, neighborBonus, tileBonus, storeDeck, restoreDeck} from './game.js?v=0.1.51';
+import {unlockAudio, sfx, toggleMute, muted} from './audio.js?v=0.1.51';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
 let save, recoveryRaw=null, storageAvailable=true, initialRaw=null, droppedMatch=false;
@@ -36,7 +36,19 @@ let previewDifficulty='normal';
 let collectionElement='all',collectionKind='all',collectionScope='owned',collectionSort='cost',mapTile=null;
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&'+'amp;','<':'&'+'lt;','>':'&'+'gt;','"':'&'+'quot;',"'":'&'+'#39;'}[c]));}
 let lastPersisted=initialRaw;
-function persist(){if(recoveryRaw!==null||!storageAvailable)return;try{const raw=JSON.stringify(save);if(raw===lastPersisted)return;localStorage.setItem(KEY,raw);lastPersisted=raw;}catch(e){status='자동 저장 실패: 브라우저 용량/권한 확인';}}
+let storageConflict=false;
+function detectStorageConflict(){
+  if(storageConflict)return true;
+  if(!storageAvailable)return false;
+  try{if(localStorage.getItem(KEY)!==lastPersisted){storageConflict=true;clearFxTimer();if(aiTimer){clearTimeout(aiTimer);aiTimer=null;}fx=null;}}
+  catch(e){storageAvailable=false;status='자동 저장 실패: 브라우저 용량/권한 확인';}
+  return storageConflict;
+}
+function persist(){if(recoveryRaw!==null||!storageAvailable||detectStorageConflict())return;try{const raw=JSON.stringify(save);if(raw===lastPersisted)return;localStorage.setItem(KEY,raw);lastPersisted=raw;}catch(e){status='자동 저장 실패: 브라우저 용량/권한 확인';}}
+window.addEventListener('storage',e=>{if((e.key===KEY||e.key===null)&&detectStorageConflict()){preserveScroll=true;render();}});
+let pendingBuild=window.runePendingBuild||null;
+window.addEventListener('rune-update',e=>{pendingBuild=e.detail;preserveScroll=true;render();});
+function updateNotice(){return pendingBuild?`<div class="update-notice" role="status"><span>새 버전이 준비됐습니다. 원할 때 적용하세요.</span>${btn('저장 후 업데이트','apply-update','','outline small-button')}</div>`:'';}
 function btn(label,act,extra='',cls=''){return `<button class="${cls}" data-action="${act}" ${extra}>${esc(label)}</button>`;}
 function badge(s){return `<span class="tag r-${s.toLowerCase()}" title="${RARITY_NAMES[s]}">${s}<span class="rarity-name"> · ${RARITY_NAMES[s]}</span></span>`;}
 function cardClass(c){return `type-${c.kind} rarity-${c.rarity.toLowerCase()}`;}
@@ -343,18 +355,24 @@ function render(){
   const hand=document.querySelector('.hand'); const hx=hand?hand.scrollLeft:0;
   const row=document.querySelector('.hand-row'); const rx=row?row.scrollLeft:0;
   const side=document.querySelector('.game-side'); const sy=side?side.scrollTop:0;
+  const dock=document.querySelector('.dock'); const dy=dock?dock.scrollTop:0;
   persist();
+  if(storageConflict){document.body.classList.remove('ingame');root.innerHTML=`<section class="notice"><h2>다른 탭에서 진행 기록이 바뀌었습니다</h2><p>최신 기록을 덮어쓰지 않도록 이 탭의 진행을 멈췄습니다. 이 탭의 상태를 JSON으로 보관하거나 최신 기록을 불러오세요.</p>${btn('이 탭 상태 보관','conflict-export','','outline')}${btn('최신 기록 불러오기','conflict-reload','','primary')}</section>`;preserveScroll=false;return;}
   document.body.classList.toggle('ingame', page==='game'&&!!save.match&&!save.match.ended);
   if(recoveryRaw!==null){root.innerHTML=nav()+`<section class="notice"><h2>이전 저장 데이터 보호</h2><p>현재 프로그램과 호환되지 않는 저장이 발견되어 기존 데이터를 덮어쓰지 않았습니다. 먼저 원본을 내려받아 보관하세요.</p>${btn('기존 JSON 내려받기','recover-export')}${btn('백업 확인 후 새 게임 시작','recover-reset','','danger')}</section>`;preserveScroll=false;return;}
-  root.innerHTML=nav()+(status?`<div class="status" role="alert">${esc(status)} ${btn('닫기','dismiss','','quiet')}</div>`:'')+(page==='rewards'?revealHTML():page==='home'?home():page==='deckcheck'?deckCheck():page==='game'?game():page==='title'?titleHTML():page==='story'?storyHTML():page==='collection'?collection():page==='logs'?logs():backup())+sheetHTML()+mapSheetHTML()+(page==='game'||page==='story'?'':`<footer>Rune Territories · Original prototype · UI ${UI_BUILD}</footer>`);
+  root.innerHTML=nav()+updateNotice()+(status?`<div class="status" role="alert">${esc(status)} ${btn('닫기','dismiss','','quiet')}</div>`:'')+(page==='rewards'?revealHTML():page==='home'?home():page==='deckcheck'?deckCheck():page==='game'?game():page==='title'?titleHTML():page==='story'?storyHTML():page==='collection'?collection():page==='logs'?logs():backup())+sheetHTML()+mapSheetHTML()+(page==='game'||page==='story'?'':`<footer>Rune Territories · Original prototype · UI ${UI_BUILD}</footer>`);
   if(preserveScroll){
-    const apply=()=>{window.scrollTo(0,y);const h=document.querySelector('.hand');if(h)h.scrollLeft=hx;const row=document.querySelector('.hand-row');if(row)row.scrollLeft=rx;const g=document.querySelector('.game-side');if(g)g.scrollTop=sy;};
+    const apply=()=>{window.scrollTo(0,y);const h=document.querySelector('.hand');if(h)h.scrollLeft=hx;const row=document.querySelector('.hand-row');if(row)row.scrollLeft=rx;const g=document.querySelector('.game-side');if(g)g.scrollTop=sy;const d=document.querySelector('.dock');if(d)d.scrollTop=dy;};
     apply(); requestAnimationFrame(apply);
   }
   preserveScroll=false;
   cueSalary();
 }
 function doAction(act,id,el){
+  if(act==='conflict-export'){const b=new Blob([JSON.stringify(save,null,2)],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='rune-territories-tab-recovery.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);return;}
+  if(act==='conflict-reload'){location.reload();return;}
+  if(detectStorageConflict()){render();return;}
+  if(act==='apply-update'){persist();if(storageConflict){render();return;}if(!storageAvailable||status.startsWith('자동 저장 실패')){render();return;}const u=new URL(location.href);u.searchParams.set('b',pendingBuild);location.replace(u);return;}
   if(['home','collection','logs','backup','finish','start','continue'].includes(act))mapTile=null;
   preserveScroll=!['home','collection','logs','backup','finish','surrender','start','reset','recover-reset','continue','hard-prep','recover-export','story-next','story-skip','story-open'].includes(act);
   switch(act){
@@ -441,17 +459,18 @@ function startTravel(who,from,steps,fast=false){
 function hop(){
   try{
     if(!fx) return;
-    if(fx.tick>=fx.steps){fx=null;preserveScroll=true;render();return;}
+    if(fx.tick>=fx.steps){fx=null;preserveScroll=true;render();queueAi();return;}
     fx.tick++;sfx('step');preserveScroll=true;render();
     fxTimer=setTimeout(hop,fx.fast?140:320);
   }catch(e){clearFxTimer();fx=null;status=e.message;preserveScroll=true;render();}
 }
 function cueSalary(){const m=save.match;if(fx||!m||m.ended||m.current!==0||!m.salaryNotice)return;if(heardSalary===m.turns)return;heardSalary=m.turns;sfx('salary');}
 function queueAi(){
-  if(fx||aiTimer||!save.match||save.match.current===0||save.match.ended||save.match.phase==='strike'||save.match.battleResult) return;
+  if(storageConflict||fx||aiTimer||!save.match||save.match.current===0||save.match.ended||save.match.phase==='strike'||save.match.battleResult) return;
   aiTimer=setTimeout(()=>{
     aiTimer=null;
     const m=save.match;
+    if(detectStorageConflict()){render();return;}
     if(fx||!m||m.current===0||m.ended) return;
     const cur=m.current,from=m.players[cur].pos,rolled=m.phase==='prep',trio=isTrio(m);
     const g0=m.players[0].gold,own0=m.tiles.map(t=>t.owner===0).join(),prev=save.log.slice(0,3);
@@ -465,7 +484,7 @@ function queueAi(){
     else if(now.act&&!(trio&&trioFF&&!((b&&(b.attacker===0||b.defender===0))||now.phase==='strike')))showBanner(now.act); // FF: only fights keep the banner
     const comp=trio&&stageById(now.stageId).compress,fight=b&&(b.attacker===0||b.defender===0)||now.phase==='strike';
     if(steps>=1&&steps<=4&&(involved?true:!(trioFF||comp))){startTravel(cur,from,steps,!involved||(trioFF&&!fight));if(fx)fx.involved=involved;}
-    else {preserveScroll=true;render();}
+    else {preserveScroll=true;render();queueAi();}
   },trio()&&trioFF?40:90);
   function trio(){return isTrio(save.match);}
 }
@@ -474,5 +493,6 @@ root.addEventListener('change',async e=>{if(e.target.id==='collection-sort'){col
  try{const next=loadSave(await file.text());save=next;sheet=null;story=null;selectedUnit=null;selectedItem=null;page='home';status='백업에서 진행 기록을 복구했습니다.';}catch(err){status=`복원 취소: ${err.message}`;}render();});
 render();
 queueAi();
+
 
 
