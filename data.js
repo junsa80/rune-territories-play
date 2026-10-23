@@ -1,7 +1,8 @@
 // All cards in this prototype are original placeholders, not extracted from any commercial game.
 export const VERSION = '0.1.0';
-export const UI_BUILD = '0.1.51';
+export const UI_BUILD = '0.1.52';
 export const UPDATES = [
+  {date:'2026-10-23', title:'판 안 그림 손질', text:'캠페인·시범에 키아트와 상대 초상을 넣고, 카드 테두리·말·소환·전투 연출을 표지 톤에 맞췄습니다. 전투 공식·점수·40장 덱·보상은 그대로입니다.'},
   {date:'2026-10-23', title:'대전 진행·저장 보호', text:'3·4인전 AI 차례가 자동으로 이어집니다. 작은 화면 선택 버튼도 12px로 표시하고, 새 버전은 저장 후 직접 적용합니다. 다른 탭에서 기록이 바뀌면 덮어쓰지 않고 최신 기록을 불러오도록 안내합니다.'},
   {date:'2026-10-22', title:'읽기 쉬운 폰 화면', text:'침략·수비 중에도 작은 판이 보이고 싸우는 칸에 테두리가 쳐집니다. 글자와 버튼은 12px 이상, 계산 자세히와 범례는 눌러서 펼칩니다.'},
   {date:'2026-10-22', title:'한 화면 대전', text:'폰(390×844)에서 1:1·3인·4인 대전이 스크롤 없이 한 화면에 들어옵니다. 침략·수비 화면에서는 판과 손패를 잠시 접고 전투 카드만 크게 보여 줍니다. 글자는 10px 이상.'},
