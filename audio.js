@@ -8,11 +8,12 @@ function ext(){try{return new Audio().canPlayType('audio/ogg; codecs="vorbis"')?
 async function fetchBuf(name){const r=await fetch(`./art/audio/${name}.${ext()}`);if(!r.ok)throw new Error(name);const a=await r.arrayBuffer();return await new Promise((ok,no)=>{const p=ctx.decodeAudioData(a,ok,no);if(p&&p.then)p.then(ok,no);});}
 async function loadSamples(){if(loading||!ctx)return;loading=true;
   for(const f of new Set(Object.values(SAMPLE))){try{buffers[f]=await fetchBuf(f);}catch{/* keep synth fallback */}}
-  try{bgmBuf=await fetchBuf('bgm-loop');if(musicOn&&!mute){stopSynth();startSampleMusic();}}catch{/* synth music stays */}
+  try{bgmBuf=await fetchBuf('bgm-loop');if(musicOn&&!mute&&!document.hidden){stopSynth();startSampleMusic();}}catch{/* synth music stays */}
 }
 try{mute=localStorage.getItem(MUTE_KEY)==='1';}catch{/* private mode */}
 
 function ensure(){
+  if(document.hidden) return null;
   if(!ctx){
     const AC=window.AudioContext||window.webkitAudioContext;
     if(!AC) return null;
@@ -51,9 +52,9 @@ function tone(freq, dur, type, gain, when, dest){
   g.gain.setValueAtTime(0.0001, when);
   g.gain.exponentialRampToValueAtTime(gain, when+0.015);
   g.gain.exponentialRampToValueAtTime(0.0001, when+dur);
-  o.connect(g); g.connect(dest); o.start(when); o.stop(when+dur+0.02);
+  o.connect(g); g.connect(dest); o.onended=()=>{o.disconnect();g.disconnect();}; o.start(when); o.stop(when+dur+0.02);
 }
-function playBuf(b){const src=ctx.createBufferSource(),g=ctx.createGain();src.buffer=b;src.playbackRate.value=1+(Math.random()*0.04-0.02);g.gain.value=0.9;src.connect(g);g.connect(sfxGain);src.start();}
+function playBuf(b){const src=ctx.createBufferSource(),g=ctx.createGain();src.buffer=b;src.playbackRate.value=1+(Math.random()*0.04-0.02);g.gain.value=0.9;src.connect(g);g.connect(sfxGain);src.onended=()=>{src.disconnect();g.disconnect();};src.start();}
 export function sfx(name){
   if(mute || !ensure()) return;
   const b=buffers[SAMPLE[name]];if(b){playBuf(b);return;}
@@ -73,7 +74,7 @@ export function sfx(name){
 }
 const SCALE=[261.6,293.7,329.6,392,440,523.3];
 function startSampleMusic(){
-  if(!bgmBuf||bgmSrc) return;
+  if(!bgmBuf||bgmSrc||document.hidden||mute) return;
   bgmGain=ctx.createGain();bgmGain.gain.value=5;  // musicGain is 0.045; x5 gives ~0.22 for the normalised loop
   bgmSrc=ctx.createBufferSource();bgmSrc.buffer=bgmBuf;bgmSrc.loop=true;bgmSrc.connect(bgmGain);bgmGain.connect(musicGain);bgmSrc.start();
 }
@@ -93,5 +94,8 @@ function startMusic(){
   };
   tick();
 }
-function stopMusic(){musicOn=false; if(musicTimer) clearTimeout(musicTimer); if(bgmSrc){try{bgmSrc.stop();}catch{/* stopped */} bgmSrc=null;}}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible' && ctx && ctx.state==='suspended') ctx.resume();});
+function stopMusic(){musicOn=false; if(musicTimer) clearTimeout(musicTimer); if(bgmSrc){try{bgmSrc.stop();}catch{/* stopped */} bgmSrc.disconnect();bgmGain?.disconnect(); bgmSrc=null;bgmGain=null;}}
+document.addEventListener('visibilitychange',()=>{if(!ctx)return;if(document.hidden){stopMusic();ctx.suspend().catch(()=>{});}else if(!mute){ctx.resume().then(()=>{if(!document.hidden&&!mute)startMusic();}).catch(()=>{});}});
+window.addEventListener('pagehide',()=>{if(ctx){stopMusic();ctx.suspend().catch(()=>{});}});
+window.addEventListener('pageshow',()=>{if(ctx&&!document.hidden&&!mute){ctx.resume().then(()=>startMusic()).catch(()=>{});}});
+
