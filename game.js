@@ -1,4 +1,4 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, TRIO_STAGE, TRIALS, DECK_SIZE, COPY_LIMIT, STARTER_DECK, RARITIES, RARITY_WEIGHTS, DUST_GAIN, DUST_COST, DAILY_PACKS, STAGE_PACKS, HOT_PACK, ACHIEVEMENTS, STORY, makeBoard, trialReward} from './data.js?v=0.1.47';
+import {VERSION, CARDS, CARD_LIST, STAGES, TRIO_STAGE, TRIALS, DECK_SIZE, COPY_LIMIT, STARTER_DECK, RARITIES, RARITY_WEIGHTS, DUST_GAIN, DUST_COST, DAILY_PACKS, STAGE_PACKS, HOT_PACK, ACHIEVEMENTS, STORY, makeBoard, trialReward} from './data.js?v=0.1.53';
 
 export function newSave(seed = Date.now()) {
   const collection = {};
@@ -67,7 +67,7 @@ export function startMatch(s,stageId,difficulty='normal') {
   const board=makeBoard(stage.board.w,stage.board.h);
   const aiBonus=difficulty==='hard'?80:0;
   s.match={stageId,difficulty,round:1,phase:'prep',current:0,steps:0,turns:0,ended:false,w:board.w,h:board.h,corners:board.corners,
-    players:trio?[mkPlayer(0,s.deck,0),...stage.enemyDecks.map((d,i)=>mkPlayer(i+1,d,Math.round(board.ring.length*(i+1)/stage.players)))]:[mkPlayer(0,s.deck,0),mkPlayer(1,stage.enemyDeck,board.aiStart,aiBonus)],
+    players:trio?[mkPlayer(0,s.deck,0),...stage.enemyDecks.map((d,i)=>mkPlayer(i+1,d,Math.round(board.ring.length*(i+1)/stage.players)))]:[mkPlayer(0,s.deck,0),mkPlayer(1,difficulty==='hard'&&stage.hardEnemyDeck?stage.hardEnemyDeck:stage.enemyDeck,board.aiStart,aiBonus)],
     tiles:board.ring.map(([r,c],i)=>({index:i,r,c,element:board.elements[i],owner:null,cardId:null,level:0}))};
   for(const p of s.match.players)refill(s,p);
   log(s,`[대전] ${stage.name} · ${difficulty==='hard'?'어려움':'일반'} 시작`);
@@ -551,3 +551,4 @@ export function loadSave(raw){const s=typeof raw==='string'?JSON.parse(raw):raw;
 export function trioOpen(s){return !!s.progress?.cleared?.includes(1);}
 export function quadOpen(s){return (s.trio?.played||0)>=1||!!s.progress?.cleared?.includes(2);}
 export function trialOpen(s,st){return st.id===TRIO_STAGE.id?trioOpen(s):quadOpen(s);}
+

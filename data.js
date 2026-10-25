@@ -1,7 +1,8 @@
 // All cards in this prototype are original placeholders, not extracted from any commercial game.
 export const VERSION = '0.1.0';
-export const UI_BUILD = '0.1.52';
+export const UI_BUILD = '0.1.53';
 export const UPDATES = [
+  {date:'2026-10-25', title:'성장 덱과 후반 난이도', text:'4장 상대는 비의 현자로 땅을 지킵니다. 6장 상대는 수입 주문을 사용하며, 어려움에서는 시작 자금·월급 우위와 함께 별도 덱 구성을 씁니다. 카드 능력치·보상·기존 저장은 유지됩니다.'},
   {date:'2026-10-23', title:'판 안 그림 손질', text:'캠페인·시범에 키아트와 상대 초상을 넣고, 카드 테두리·말·소환·전투 연출을 표지 톤에 맞췄습니다. 전투 공식·점수·40장 덱·보상은 그대로입니다.'},
   {date:'2026-10-23', title:'대전 진행·저장 보호', text:'3·4인전 AI 차례가 자동으로 이어집니다. 작은 화면 선택 버튼도 12px로 표시하고, 새 버전은 저장 후 직접 적용합니다. 다른 탭에서 기록이 바뀌면 덮어쓰지 않고 최신 기록을 불러오도록 안내합니다.'},
   {date:'2026-10-22', title:'읽기 쉬운 폰 화면', text:'침략·수비 중에도 작은 판이 보이고 싸우는 칸에 테두리가 쳐집니다. 글자와 버튼은 12px 이상, 계산 자세히와 범례는 눌러서 펼칩니다.'},
@@ -122,9 +123,9 @@ export const STAGES = [
   {id:1,name:'첫 번째 고리',enemy:'여행자 레오',style:'balanced',target:1900,maxRounds:18,board:{w:5,h:5},focus:'작은 사각형 16칸',keyCard:'gate-breaker',enemyDeck:[...n('path-keeper',4),...n('ember-fox',4),...n('river-guard',4),...n('moss-turtle',4),...n('breeze-hawk',4),...n('pebble-ward',4),...n('spark-scout',4),...n('dew-drop',4),...n('reed-lancer',4),...n('trail-supplies',2),...n('steel-blade',1),...n('stone-shield',1)]},
   {id:2,name:'깊은 뿌리',enemy:'수호자 미라',style:'fortress',target:2400,maxRounds:20,board:{w:7,h:5},focus:'가로로 긴 20칸',keyCard:'twin-crest',enemyDeck:[...n('root-speaker',4),...n('moss-turtle',4),...n('river-guard',4),...n('mist-runner',4),...n('pebble-ward',4),...n('dew-drop',4),...n('bastion-moss',4),...n('path-keeper',4),...n('stone-shield',4),...n('steel-blade',2),...n('searing-blast',2)]},
   {id:3,name:'폭풍의 문',enemy:'마도사 아르',style:'aggressive',target:2800,maxRounds:22,board:{w:7,h:7},focus:'큰 사각형 24칸',keyCard:'double-oath',enemyDeck:[...n('cinder-squire',4),...n('ember-fox',4),...n('spark-scout',4),...n('cloud-stag',4),...n('reed-lancer',4),...n('twin-crest',2),...n('arc-bow',4),...n('searing-blast',2),...n('double-oath',2),...n('tempest-giant',2),...n('volcanic-lord',1),...n('ash-contract',2),...n('invest-golem',2),...n('sand-clock',3)]},
-  {id:4,name:'닫힌 장부',enemy:'감사 노엘',style:'fortress',target:3000,maxRounds:24,board:{w:5,h:9},focus:'세로로 긴 24칸',keyCard:'debt-oak',enemyDeck:[...n('quay-spark',4),...n('ink-jelly',4),...n('debt-oak',4),...n('tall-kite',2),...n('quiet-colossus',1),...n('moss-turtle',4),...n('bastion-moss',4),...n('stone-shield',4),...n('root-speaker',4),...n('pebble-ward',4),...n('steel-blade',2),...n('searing-blast',3)]},
+  {id:4,name:'닫힌 장부',enemy:'감사 노엘',style:'fortress',target:3000,maxRounds:24,board:{w:5,h:9},focus:'세로로 긴 24칸',keyCard:'debt-oak',enemyDeck:[...n('quay-spark',4),...n('ink-jelly',4),...n('debt-oak',4),...n('tall-kite',2),...n('quiet-colossus',1),...n('moss-turtle',4),...n('bastion-moss',4),...n('stone-shield',4),...n('root-speaker',4),...n('rain-sage',4),...n('steel-blade',2),...n('searing-blast',3)]},
   {id:5,name:'이름 없는 칸',enemy:'측량사 린',style:'balanced',target:3200,maxRounds:26,board:{w:9,h:5},focus:'가로로 긴 24칸',keyCard:'flare-mason',enemyDeck:[...n('flare-mason',4),...n('measure-heron',4),...n('notch-boar',4),...n('lane-wisp',4),...n('seal-knight',2),...n('reed-lancer',4),...n('cinder-squire',4),...n('arc-bow',4),...n('cloud-stag',4),...n('spark-scout',4),...n('golden-path',2)]},
-  {id:6,name:'마지막 고용',enemy:'고용주 세르',style:'aggressive',target:3800,maxRounds:28,board:{w:9,h:7},focus:'큰 직사각형 28칸',keyCard:'contract-titan',enemyDeck:[...n('contract-titan',2),...n('crown-ash',4),...n('payroll-crab',4),...n('gulf-moth',4),...n('spire-mole',4),...n('world-tree',1),...n('volcanic-lord',2),...n('tempest-giant',2),...n('double-oath',2),...n('tidal-oracle',1),...n('mirror-armor',2),...n('level-tithe',2),...n('star-drake',1),...n('forest-warden',2),...n('gate-breaker',2),...n('twin-crest',2),...n('arc-bow',3)]}
+  {id:6,name:'마지막 고용',enemy:'고용주 세르',style:'aggressive',target:3800,maxRounds:28,board:{w:9,h:7},focus:'큰 직사각형 28칸',keyCard:'contract-titan',enemyDeck:[...n('contract-titan',2),...n('crown-ash',4),...n('payroll-crab',4),...n('gulf-moth',4),...n('spire-mole',1),...n('trail-supplies',3),...n('world-tree',1),...n('volcanic-lord',2),...n('tempest-giant',2),...n('double-oath',2),...n('tidal-oracle',1),...n('mirror-armor',2),...n('level-tithe',2),...n('star-drake',1),...n('forest-warden',2),...n('gate-breaker',2),...n('twin-crest',2),...n('arc-bow',3)],get hardEnemyDeck(){const deck=[...this.enemyDeck];for(let i=0;i<2;i++)deck[deck.indexOf('trail-supplies')]='spire-mole';return deck;}}
 ];
 // 3인 시범 (2026-10-22, GrokBot). 1:1 스테이지 목록과 목표 점수는 건드리지 않는 별도 설정. 보상 없음.
 export const TRIO_STAGE = {id:100,trial:true,players:3,record:'trio',minutes:10.0,achievement:'trio-clear',packStage:1,name:'3인 시범',enemy:'레오 · 미라',faces:['leo','mira'],names:['레오','미라'],style:'balanced',target:3800,maxRounds:36,board:{w:6,h:6},gentle:400,focus:'고리 20칸 · 셋이 한 고리',hook:'셋이 한 고리를 걷는다. 누가 먼저 무너지는지 보자.',
@@ -297,6 +298,7 @@ export const STORY={
     18:{"intro": {"kicker": "열여덟째 장 · 열린 속표", "title": "다음 이름은 오지 않았다", "face": "seal", "hook": "둘째 책은 여전히 열려 있다. 다음 이름은 아직 도착하지 않았다.", "pages": [{"face": "seal", "speaker": "속표리 끝", "text": "무는 색 없는 집을 어디에나 세웠다. 나는 그 뒤에 올 이름이 속표에 앉았는지만 본다."}, {"face": "seal", "speaker": "속표리 끝", "text": "둘째 책은 덮이지 않았고, 다음 이름은 오지 않았다. 빈 줄은 한이 남겨 둔 그대로다."}]}, "outro": {"kicker": "열여덟째 장 · 이후", "title": "속표는 여기서 멈춘다", "face": "seal", "pages": [{"face": "seal", "speaker": "속표리 끝", "text": "월급은 남아 있고, 고리는 열려 있다. 나는 도착하지 않은 이름을 지어 넣지 않는다."}, {"face": "seal", "speaker": "속표리 끝", "text": "이 권은 아직 장부 밖에 있다. 다음 이름이 오기 전에는, 속표를 여기서 멈춘다."}]}}
   }
 };
+
 
 
 
