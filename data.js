@@ -1,7 +1,8 @@
 // All cards in this prototype are original placeholders, not extracted from any commercial game.
 export const VERSION = '0.1.0';
-export const UI_BUILD = '0.1.53';
+export const UI_BUILD = '0.2.0';
 export const UPDATES = [
+  {date:'2026-10-28',title:'누적 피해와 반격 · 다시 노릴 수 있는 영토',text:'공격 후 수비가 살아 있으면 반격합니다. 공격자가 생존하면 손패로 복귀하고, 영토 피해는 다음 공격에 이어집니다. 소유자가 출발점을 통과하면 인쇄 생명의 20%를 회복합니다. 미라의 목표·라운드와 카드 능력치는 유지합니다.'},
   {date:'2026-10-25', title:'성장 덱과 후반 난이도', text:'4장 상대는 비의 현자로 땅을 지킵니다. 6장 상대는 수입 주문을 사용하며, 어려움에서는 시작 자금·월급 우위와 함께 별도 덱 구성을 씁니다. 카드 능력치·보상·기존 저장은 유지됩니다.'},
   {date:'2026-10-23', title:'판 안 그림 손질', text:'캠페인·시범에 키아트와 상대 초상을 넣고, 카드 테두리·말·소환·전투 연출을 표지 톤에 맞췄습니다. 전투 공식·점수·40장 덱·보상은 그대로입니다.'},
   {date:'2026-10-23', title:'대전 진행·저장 보호', text:'3·4인전 AI 차례가 자동으로 이어집니다. 작은 화면 선택 버튼도 12px로 표시하고, 새 버전은 저장 후 직접 적용합니다. 다른 탭에서 기록이 바뀌면 덮어쓰지 않고 최신 기록을 불러오도록 안내합니다.'},
@@ -57,8 +58,8 @@ export const CARD_LIST = [
   {id:'moss-turtle',name:'이끼거북',kind:'unit',element:'earth',rarity:'C',stage:1,cost:32,atk:2,hp:7,grow:6,desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
   {id:'trail-supplies',name:'여행 보급',kind:'spell',element:'neutral',rarity:'U',stage:1,cost:12,effect:'gainGold',power:55,desc:'한 턴에 1장. 이동 전 또는 전투 지원. 무조건 55G.'},
   {id:'three-lands',name:'세 땅의 주머니',kind:'spell',element:'neutral',rarity:'U',stage:1,cost:12,effect:'wage',power:70,power2:30,desc:'같은 가격. 아군 영토 3개 이상이면 70G, 아니면 30G. 전투 지원으로 내면 확정 뒤에 공개.'},
-  {id:'steel-blade',name:'강철 칼날',kind:'item',element:'neutral',rarity:'U',stage:1,cost:15,power:4,bonus:'atk',desc:'침략용 지원. 공격 +4. 수비에는 효과가 없다.'},
-  {id:'stone-shield',name:'석벽 방패',kind:'item',element:'neutral',rarity:'U',stage:1,cost:15,power:4,bonus:'def',desc:'수비용 지원. 수비 생명 +4. 침략에는 효과가 없다.'},
+  {id:'steel-blade',name:'강철 칼날',kind:'item',element:'neutral',rarity:'U',stage:1,cost:15,power:4,bonus:'atk',desc:'침략 공격 +4, 수비 반격 +4. 사용 후 버림패.'},
+  {id:'stone-shield',name:'석벽 방패',kind:'item',element:'neutral',rarity:'U',stage:1,cost:15,power:4,bonus:'def',desc:'침략 생명 +4, 수비 임시 생명 +4. 사용 후 버림패.'},
   {id:'element-point',name:'속성 칼끝',kind:'item',element:'neutral',rarity:'U',stage:1,cost:15,power:6,bonus:'elem-atk',desc:'침략용 지원. 공격 유닛과 땅 속성이 맞으면 공격 +6, 아니면 +1.'},
   {id:'tiny-charm',name:'작은 부적',kind:'item',element:'neutral',rarity:'C',stage:1,cost:8,power:2,bonus:'atk',desc:'침략용 지원. 공격 +2. 강철 칼날보다 저렴하다.'},
   {id:'thin-hide',name:'얇은 가죽',kind:'item',element:'neutral',rarity:'C',stage:1,cost:8,power:2,bonus:'def',desc:'수비용 지원. 수비 생명 +2. 석벽 방패보다 저렴하다.'},
@@ -73,8 +74,8 @@ export const CARD_LIST = [
   {id:'searing-blast',name:'작열의 거래',kind:'spell',element:'fire',rarity:'U',stage:2,cost:20,effect:'drain',power:45,desc:'한 턴에 1장. 이동 전 또는 전투 지원. 상대 현금에서 최대 45G 소멸.'},
   {id:'ash-contract',name:'재의 계약',kind:'spell',element:'neutral',rarity:'U',stage:2,cost:20,effect:'placeCut',power:100,desc:'다음 유닛 배치 비용을 최대 100G 할인. 비싼 유닛용 준비 주문. 싼 유닛에 쓰면 할인도 작다. 침략 비용에는 적용되지 않는다.'},
   {id:'twin-crest',name:'쌍문장 기사',kind:'unit',element:'neutral',rarity:'R',stage:2,cost:52,atk:7,hp:8,grow:4,trait:'twin-oath',desc:'수비 역할이며, 무속성이라 땅 보너스는 없다.'},
-  {id:'arc-bow',name:'아크 활',kind:'item',element:'neutral',rarity:'R',stage:2,cost:24,power:7,bonus:'atk',desc:'침략용 지원. 공격 +7. 수비에는 효과가 없다.'},
-  {id:'matched-shield',name:'맞방패',kind:'item',element:'neutral',rarity:'R',stage:2,cost:24,power:7,bonus:'def',desc:'수비용 지원. 수비 생명 +7. 침략에는 효과가 없다.'},
+  {id:'arc-bow',name:'아크 활',kind:'item',element:'neutral',rarity:'R',stage:2,cost:24,power:7,bonus:'atk',desc:'침략 공격 +7, 수비 반격 +7. 사용 후 버림패.'},
+  {id:'matched-shield',name:'맞방패',kind:'item',element:'neutral',rarity:'R',stage:2,cost:24,power:7,bonus:'def',desc:'침략 생명 +7, 수비 임시 생명 +7. 사용 후 버림패.'},
   {id:'invest-golem',name:'축성 골렘',kind:'unit',element:'neutral',rarity:'U',stage:2,cost:40,atk:4,hp:4,grow:6,trait:'slow-invest',desc:'수비 역할이며, 무속성이라 땅 보너스는 없다.'},
   {id:'tempest-giant',name:'폭풍 거인',kind:'unit',element:'air',rarity:'E',stage:2,cost:72,atk:9,hp:11,grow:3,trait:'storm-call',desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
   {id:'tidal-oracle',name:'조수의 예언자',kind:'unit',element:'water',rarity:'L',stage:2,cost:95,atk:9,hp:14,grow:6,trait:'tide-read',desc:'수비 역할이며, 맞는 땅이면 생명에 땅 레벨만 더한다.'},
@@ -117,6 +118,10 @@ export const CARD_LIST = [
   {id:'terrace-boar',name:'단 멧돼지',kind:'unit',element:'earth',rarity:'E',stage:6,cost:96,atk:7,hp:11,grow:6,trait:'root-bind',token:true,book:2,desc:'다져진 흙의 멧돼지는 땅의 낮은 단에 서야 그 칸을 지킨다.'},
   {id:'oath-ember',name:'맹세 잔화',kind:'unit',element:'fire',rarity:'L',stage:6,cost:128,atk:14,hp:8,grow:2,trait:'star-scale',token:true,book:2,desc:'얇은 금테 안의 잔화는 맹세한 불의 칸을 떠나지 않는다.'}
 ];
+// Both sides can equip either type; the role determines the affected stat.
+for(const c of CARD_LIST.filter(c=>c.kind==='item')){
+ c.desc=c.bonus==='def'?`침략 생명 +${c.power}. 수비 임시 생명 +${c.power}(먼저 소모). 사용 후 버림패.`:c.bonus==='elem-atk'?`유닛과 땅 속성이 맞으면 침략 공격·수비 반격 +${c.power}, 아니면 +1. 사용 후 버림패.`:`침략 공격 +${c.power}. 수비 반격 +${c.power}. 사용 후 버림패.`;
+}
 export const CARDS = Object.fromEntries(CARD_LIST.map(c=>[c.id,c]));
 export const STARTER_DECK = [...n('path-keeper',4),...n('ember-fox',3),...n('river-guard',3),...n('moss-turtle',3),...n('breeze-hawk',3),...n('pebble-ward',4),...n('spark-scout',3),...n('dew-drop',3),...n('reed-lancer',3),...n('trail-supplies',3),...n('steel-blade',2),...n('stone-shield',1),...n('tiny-charm',2),...n('thin-hide',2),...n('three-lands',1)];
 export const STAGES = [
@@ -141,7 +146,7 @@ export const QUAD_STAGE = {id:101,trial:true,players:4,record:'quad',minutes:14.
 export const TRIALS = [TRIO_STAGE, QUAD_STAGE];
 export const HARD_HINTS = {
   1:{threat:'상대는 시작 골드와 매턴 수입이 더 많습니다.',goal:'저렴한 유닛으로 빈 땅을 먼저 확보하고, 여행 보급 같은 수입 주문으로 투자를 이어가세요.',tools:'저비용 유닛 · 수입 주문 · 석벽 방패'},
-  2:{threat:'대지 유닛이 이웃과 연결되면 수비 생명이 높아집니다.',goal:'무리한 침략을 줄이고, 높은 공격 유닛에 공격 장비를 더해 수비 생명을 넘겨 보세요.',tools:'관문 파괴자 · 강철 칼날 · 높은 공격력'},
+  2:{threat:'대지 유닛이 이웃과 연결되면 수비 생명이 높아집니다.',goal:'방패로 반격을 버티며 피해를 남기고, 손상된 땅을 공격 장비로 마무리하세요. 상대의 출발점 통과 회복과 비용·통행료도 확인하세요.',tools:'관문 파괴자 · 강철 칼날 · 높은 공격력'},
   3:{threat:'상대는 공격 유닛과 아크 활로 영토를 빼앗으려 합니다.',goal:'중요한 땅은 수비 생명 장비로 지키고, 상대가 약하게 지킨 칸을 공격 장비로 노리세요.',tools:'맞방패 · 아크 활 · 수비 생명이 높은 유닛'},
   4:{threat:'성채 이끼와 뿌리술사, 방패를 섞은 수비형 덱입니다.',goal:'상대 지원이 공개되기 전에는 성공을 확신하지 마세요. 침략 자금과 내 영토 점수도 함께 준비하세요.',tools:'공격 장비 · 수입 주문 · 영토 강화'},
   5:{threat:'속성이 다른 여러 유닛과 공격 장비를 사용합니다.',goal:'내 유닛과 땅의 속성을 맞추고, 상대 유닛의 수비 생명을 확인해 공격할 칸을 고르세요.',tools:'속성이 맞는 수비 유닛 · 공격 장비 · 유연한 무속성 유닛'},

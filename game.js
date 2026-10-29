@@ -1,4 +1,4 @@
-import {VERSION, CARDS, CARD_LIST, STAGES, TRIO_STAGE, TRIALS, DECK_SIZE, COPY_LIMIT, STARTER_DECK, RARITIES, RARITY_WEIGHTS, DUST_GAIN, DUST_COST, DAILY_PACKS, STAGE_PACKS, HOT_PACK, ACHIEVEMENTS, STORY, makeBoard, trialReward} from './data.js?v=0.1.53';
+import {VERSION, CARDS, CARD_LIST, STAGES, TRIO_STAGE, TRIALS, DECK_SIZE, COPY_LIMIT, STARTER_DECK, RARITIES, RARITY_WEIGHTS, DUST_GAIN, DUST_COST, DAILY_PACKS, STAGE_PACKS, HOT_PACK, ACHIEVEMENTS, STORY, makeBoard, trialReward} from './data.js?v=0.2.0';
 
 export function newSave(seed = Date.now()) {
   const collection = {};
@@ -55,6 +55,20 @@ function draw(s,p) {
 }
 function refill(s,p) {while(p.hand.length<4 && (p.deck.length || p.discard.length))draw(s,p);}
 function removeHand(p,id) {const i=p.hand.indexOf(id);ensure(i>=0,'손패에 없는 카드');p.hand.splice(i,1);p.discard.push(id);}
+function takeHand(p,id) {const i=p.hand.indexOf(id);ensure(i>=0,'손패에 없는 카드');p.hand.splice(i,1);}
+// Older games recycled deployed cards into the deck. Preserve those existing
+// territories as legacy tokens, without creating a second card on their death.
+export function migrateCombat(m){
+ if(!m||!Array.isArray(m.tiles))return m;
+ const legacy=!m.combatVersion;
+ ensure(!m.combatVersion||m.combatVersion===2,'지원하지 않는 전투 저장 버전');
+ for(const t of m.tiles){
+  if(legacy&&t.owner!==null)t.legacyToken=true;
+  if(t.damage===undefined)t.damage=0;
+  ensure(Number.isSafeInteger(t.damage)&&t.damage>=0&&t.damage<=1000000,'영토 피해 저장 오류');
+ }
+ m.combatVersion=2;return m;
+}
 export function startMatch(s,stageId,difficulty='normal') {
   ensure(!s.match,'진행 중인 대전이 있습니다.');validateDeck(s);
   const stage=stageById(stageId);ensure(!!stage,'없는 스테이지');
@@ -66,9 +80,9 @@ export function startMatch(s,stageId,difficulty='normal') {
   const mkPlayer=(id,deck,pos,bonus=0)=>({id,pos,gold:220+bonus,deck:shuffle(s,deck),hand:[],discard:[],spellUsed:false,placeCut:0});
   const board=makeBoard(stage.board.w,stage.board.h);
   const aiBonus=difficulty==='hard'?80:0;
-  s.match={stageId,difficulty,round:1,phase:'prep',current:0,steps:0,turns:0,ended:false,w:board.w,h:board.h,corners:board.corners,
+  s.match={combatVersion:2,stageId,difficulty,round:1,phase:'prep',current:0,steps:0,turns:0,ended:false,w:board.w,h:board.h,corners:board.corners,
     players:trio?[mkPlayer(0,s.deck,0),...stage.enemyDecks.map((d,i)=>mkPlayer(i+1,d,Math.round(board.ring.length*(i+1)/stage.players)))]:[mkPlayer(0,s.deck,0),mkPlayer(1,difficulty==='hard'&&stage.hardEnemyDeck?stage.hardEnemyDeck:stage.enemyDeck,board.aiStart,aiBonus)],
-    tiles:board.ring.map(([r,c],i)=>({index:i,r,c,element:board.elements[i],owner:null,cardId:null,level:0}))};
+    tiles:board.ring.map(([r,c],i)=>({index:i,r,c,element:board.elements[i],owner:null,cardId:null,level:0,damage:0}))};
   for(const p of s.match.players)refill(s,p);
   log(s,`[대전] ${stage.name} · ${difficulty==='hard'?'어려움':'일반'} 시작`);
   const hook=trio?stage.hook:STORY.stages[stageId]?.intro?.hook;
@@ -106,8 +120,10 @@ export function playSpell(s,id){ensure(legalSpell(s,id),'이 시점에 사용할
  m.act={kind:'spell',id:c.id,name:c.name,element:c.element,who:m.current,line};
  log(s,`[${m.current?'AI':'나'}] ${c.name} 사용 · ${line}`);
 }
-export function roll(s){const m=s.match;ensure(m&&m.phase==='prep','굴릴 수 없는 상태');const p=m.players[m.current];const steps=randInt(s,1,4);m.steps=steps;m.salaryNotice=0;let lap=0;
- for(let i=0;i<steps;i++){p.pos=(p.pos+1)%m.tiles.length;if(p.pos===0){p.gold+=65;lap+=65;}}
+export function roll(s){const m=s.match;ensure(m&&m.phase==='prep','굴릴 수 없는 상태');migrateCombat(m);const p=m.players[m.current];const steps=randInt(s,1,4);m.steps=steps;m.salaryNotice=0;let lap=0;
+ m.lastHealing=[];
+ for(let i=0;i<steps;i++){p.pos=(p.pos+1)%m.tiles.length;if(p.pos===0){p.gold+=65;lap+=65;m.lastHealing.push(...healLands(m,m.current));}}
+ if(m.lastHealing.length)log(s,`[회복] ${whoName(m.current)} 출발점 통과 · ${m.lastHealing.map(x=>`${x.tile}번 +${x.healed}HP`).join(', ')}`);
  if(lap) noteGold(m,`고리 → ${whoName(m.current)} ${lap}G`);
  m.phase='land';const t=m.tiles[p.pos];log(s,`[${m.current?'AI':'나'}] 주사위 ${steps}, ${p.pos}번 칸 (${t.element})`);return steps;
 }
@@ -177,6 +193,34 @@ export function traitNumbers(m,t,level=t.level){
   const d=defendMods(m,t,level);
   return {hp:d.hp+auraHP(m,t), ret:d.ret, toll:tollOf(m,t,level)};
 }
+export function territoryHealth(m,t){
+ const c=CARDS[t.cardId];if(!c)return {max:0,current:0,damage:0};
+ const max=c.hp+tileBonus(t,c)+neighborBonus(m,t,t.owner)+traitNumbers(m,t).hp;
+ const damage=Math.min(t.damage||0,Math.max(0,max-1));
+ // Removing a neighboring aura never kills a unit outside combat.
+ return {max,current:Math.max(1,max-damage),damage};
+}
+export function healLands(m,owner){
+ const healed=[];
+ for(const t of ownerLands(m,owner)){
+  const before=territoryHealth(m,t),amount=Math.min(before.damage,Math.ceil(CARDS[t.cardId].hp*.2));
+  if(amount){t.damage=before.damage-amount;healed.push({tile:t.index,healed:amount,remaining:territoryHealth(m,t).current});}
+ }
+ return healed;
+}
+// Single sequential verdict, shared by previews and actual resolution. Temporary
+// equipment HP absorbs damage first; only damage through it persists on land.
+export function battleOutcome({attack,defenderHP,defense,retaliation,temporaryHP=0,standingHP=defenderHP-temporaryHP}){
+ const attackDamage=Math.min(Math.max(0,attack),defenderHP);
+ const success=attackDamage>=defenderHP;
+ const counterDamage=success?0:Math.min(Math.max(0,retaliation),defense);
+ const attackerRemaining=Math.max(0,defense-counterDamage);
+ const persistentDamage=Math.max(0,attackDamage-temporaryHP);
+ const defenderRemaining=success?0:Math.max(1,standingHP-persistentDamage);
+ const attackerSurvives=attackerRemaining>0;
+ return {success,attackDamage,counterDamage,attackerRemaining,attackerSurvives,defenderRemaining,persistentDamage,
+  outcome:success?'capture':attackerSurvives?'held':'attacker-dead',cardDestination:success?'territory':attackerSurvives?'hand':'discard'};
+}
 export function combatPreview(s,attackerId,itemId=null,defItemId=null){const m=s.match,p=m.players[m.current],t=m.tiles[p.pos];
  ensure((m.phase==='land'||m.phase==='strike')&&t.owner!==null&&t.owner!==m.current,'침략할 적 영토가 아닙니다.');
  const a=CARDS[attackerId],d=CARDS[t.cardId],item=itemId?CARDS[itemId]:null,defItem=defItemId?CARDS[defItemId]:null;
@@ -187,20 +231,21 @@ export function combatPreview(s,attackerId,itemId=null,defItemId=null){const m=s
  const tileHp=tileBonus(t,d);
  const neigh=neighborBonus(m,t,t.owner), aura=auraHP(m,t);
  const attack=a.atk+am.atk+im.atk;
- const defenderHP=d.hp+tileHp+neigh+dm.hp+aura+dim.hp;
+ const health=territoryHealth(m,t),standingHP=health.current;
+ const defenderHP=standingHP+dim.hp;
  const defense=a.hp+am.def+im.def;
  const retaliation=d.atk+dm.ret+dim.ret;
- const killed=attack>=defenderHP;
+ const result=battleOutcome({attack,defenderHP,defense,retaliation,temporaryHP:dim.hp,standingHP});
  const parts={
   atk:[['기본',a.atk],['특성',am.atk],['장비',im.atk]],
-  hp:[['기본',d.hp],['지형',tileHp],['연속',neigh],['특성',dm.hp],['이웃',aura],['장비',dim.hp]],
+  hp:[['기본',d.hp],['지형',tileHp],['연속',neigh],['특성',dm.hp],['이웃',aura],['누적 피해',standingHP-health.max],['임시 장비',dim.hp]],
   body:[['기본',a.hp],['특성',am.def],['장비',im.def]],
   ret:[['기본',d.atk],['특성',dm.ret],['장비',dim.ret]]
  };
- return {attack,defenderHP,defense,retaliation,success:killed,cost:a.cost+(item?.cost||0),toll:tollOf(m,t),stay:am.stay,parts};
+ return {attack,defenderHP,standingHP,temporaryHP:dim.hp,defense,retaliation,...result,cost:a.cost+(item?.cost||0),toll:tollOf(m,t),stay:am.stay,parts,previousDamage:health.damage};
 }
-export function place(s,id){const m=s.match;ensure(placementOptions(s).includes(id),'배치 불가능');const p=m.players[m.current],t=m.tiles[p.pos],c=CARDS[id];const cut=Math.min(c.cost,p.placeCut||0);p.gold-=c.cost-cut;p.placeCut=0;removeHand(p,id);
- Object.assign(t,{owner:m.current,cardId:id,level:1});
+export function place(s,id){const m=s.match;migrateCombat(m);ensure(placementOptions(s).includes(id),'배치 불가능');const p=m.players[m.current],t=m.tiles[p.pos],c=CARDS[id];const cut=Math.min(c.cost,p.placeCut||0);p.gold-=c.cost-cut;p.placeCut=0;takeHand(p,id);
+ Object.assign(t,{owner:m.current,cardId:id,level:1,damage:0,legacyToken:false});
  if(m.current===0&&c.element===t.element&&c.element!=='neutral') grantAchievement(s,'first-match');
  log(s,`[${m.current?'AI':'나'}] ${c.name} 배치 (${c.element})`);completeTurn(s);
 }
@@ -209,15 +254,7 @@ export function upgrade(s){const m=s.match;ensure(m&&m.phase==='land','진행 �
  if(m.current===0) grantAchievement(s,'first-upgrade');
  log(s,`[${m.current?'AI':'나'}] 영토 ${t.index} 강화 → Lv.${t.level} (-${cost}G)`);completeTurn(s);
 }
-export function invade(s,cardId,itemId=null){const m=s.match;const p=m.players[m.current],t=m.tiles[p.pos];const v=combatPreview(s,cardId,itemId);ensure(p.gold>=v.cost,'공격 비용 부족');
- p.gold-=v.cost;removeHand(p,cardId);if(itemId)removeHand(p,itemId);
- if(v.success){Object.assign(t,{owner:m.current,cardId,level:v.stay||1});
-   log(s,`[${m.current?'AI':'나'}] ${CARDS[cardId].name} 침략 성공 (${v.attack}/${v.defenderHP})`);
- } else {const paid=Math.min(p.gold,v.toll);p.gold-=paid;m.players[t.owner].gold+=paid;
-   log(s,`[${m.current?'AI':'나'}] 침략 실패 (${v.attack}/${v.defenderHP}) · 통행료 ${paid}G`);
- }
- completeTurn(s);return v.success;
-}
+export function invade(s,cardId,itemId=null){return resolveStrike(s,cardId,itemId,null);}
 export function playCorner(s){const m=s.match;ensure(m&&m.phase==='land','이벤트 칸이 아닙니다.');const p=m.players[m.current],t=m.tiles[p.pos],ev=cornerAt(m,t.index);
  ensure(!!ev,'이벤트 칸이 아닙니다.');
  const who=m.current?'AI':'나';
@@ -291,16 +328,24 @@ export function secretDefense(s,unitId){
     for(const id of items){try{if(!combatPreview(s,unitId,null,id).success)flips.push(id);}catch{/* skip */}}
     const pick=cheapest(flips);
     if(pick) return pick;
-  } else if(open.defense>open.retaliation && open.defenderHP-open.attack<=4){
-    const need=(open.attack+4)-open.defenderHP+1;
-    const covers=items.filter(id=>CARDS[id].bonus==='def'&&CARDS[id].power>=need);
-    const pick=cheapest(covers);
-    if(pick) return pick;
   }
+  // Protect permanent HP or stop a returning attacker, but do not spend a
+  // costly item on damage which the next lap will heal anyway.
+  const tile=m.tiles[m.players[m.current].pos],health=territoryHealth(m,tile);
+  const nearLap=(m.tiles.length-foe.pos)/2.5<=2;
+  let best=null,bestValue=0;
+  for(const id of items){
+    const v=combatPreview(s,unitId,null,id);
+    const saved=Math.max(0,open.persistentDamage-v.persistentDamage);
+    const value=saved*(nearLap?3:8)+(open.attackerSurvives&&!v.attackerSurvives?45:0)+(open.success&&!v.success?70+tile.level*65:0)-CARDS[id].cost;
+    if(value>bestValue&&foe.gold-CARDS[id].cost>=(health.current<health.max?12:25)){best=id;bestValue=value;}
+  }
+  if(best)return best;
   return sideSpell(s,def);
 }
 export function resolveStrike(s,unitId,atkSupport=null,defSupport=null){
   const m=s.match,atk=m.current,p=m.players[atk],t=m.tiles[p.pos],def=t.owner,foe=m.players[def];
+  migrateCombat(m);
   ensure((m.phase==='land'||m.phase==='strike')&&def!==null&&def!==atk,'침략할 적 영토가 아닙니다.');
   const unit=CARDS[unitId];
   ensure(unit?.kind==='unit'&&p.hand.includes(unitId),'공격 유닛 손패 없음');
@@ -312,7 +357,10 @@ export function resolveStrike(s,unitId,atkSupport=null,defSupport=null){
   ensure(p.gold>=unit.cost+(as?.cost||0),'공격 비용 부족');
   ensure(foe.gold>=(ds?.cost||0),'수비 비용 부족');
   p.gold-=unit.cost+(as?.cost||0); if(ds) foe.gold-=ds.cost;
-  removeHand(p,unitId); if(as) removeHand(p,atkSupport); if(ds) removeHand(foe,defSupport);
+  // A surviving attacker stays in its original hand slot. No remove/re-add and
+  // no refill exploit; supports are consumed exactly once in every outcome.
+  if(v.success)takeHand(p,unitId);else if(!v.attackerSurvives)removeHand(p,unitId);
+  if(as) removeHand(p,atkSupport); if(ds) removeHand(foe,defSupport);
   m.strike=null; m.phase='land';
   const who=id=>id?'AI':'나', name=id=>id?CARDS[id].name:'없음';
   const defenderId=t.cardId;
@@ -321,14 +369,14 @@ export function resolveStrike(s,unitId,atkSupport=null,defSupport=null){
   if(as?.kind==='spell') spells.push({who:atk,id:as.id,name:as.name,line:applySpellEffect(s,atk,as)});
   if(ds?.kind==='spell') spells.push({who:def,id:ds.id,name:ds.name,line:applySpellEffect(s,def,ds)});
   let moved=0;
-  if(v.success){Object.assign(t,{owner:atk,cardId:unitId,level:v.stay||1});
+  if(v.success){if(!t.legacyToken)foe.discard.push(defenderId);Object.assign(t,{owner:atk,cardId:unitId,level:v.stay||1,damage:0,legacyToken:false});
     log(s,`[${who(atk)}] 침략 성공 (${v.attack}/${v.defenderHP})`);
-  } else {moved=Math.min(p.gold,v.toll);p.gold-=moved;foe.gold+=moved;
+  } else {t.damage=v.previousDamage+v.persistentDamage;moved=Math.min(p.gold,v.toll);p.gold-=moved;foe.gold+=moved;
     noteGold(m,`${whoName(atk)} → ${whoName(def)} ${moved}G · 통행료`);
-    log(s,`[${who(atk)}] 침략 실패 (${v.attack}/${v.defenderHP}) · 통행료 ${moved}G`);
+    log(s,`[${who(atk)}] 수비 유지 · 피해 ${v.attackDamage}, 수비 잔여 ${v.defenderRemaining}HP · 반격 ${v.counterDamage} · ${v.attackerSurvives?'공격 카드 손패 복귀':'공격자 사망·버림패'} · 통행료 ${moved}G`);
   }
   m.act={kind:v.success?'strike':'blocked',id:unit.id,name:unit.name,element:unit.element,who:atk,line:spells.map(x=>`${whoName(x.who)} ${x.name} · ${x.line}`).join(' / ')};
-  m.battleResult={attacker:atk,defender:def,unitId,atkSupport:atkSupport||null,defSupport:defSupport||null,defenderId,element:t.element,tile:t.index,success:v.success,attack:v.attack,defenderHP:v.defenderHP,defense:v.defense,retaliation:v.retaliation,parts:v.parts,paid:moved,spells};
+  m.battleResult={...v,cost:unit.cost+(as?.cost||0),attacker:atk,defender:def,unitId,atkSupport:atkSupport||null,defSupport:defSupport||null,defenderId,element:t.element,tile:t.index,paid:moved,spells};
   completeTurn(s);return v.success;
 }
 export function declareStrike(s,unitId,supportId=null){
@@ -356,7 +404,7 @@ export function autoTurn(s,holdStrike=false){
       const c=CARDS[id];
       const match=tileBonus(t,c);
       const rare={U:6,R:10,E:16,L:22}[c.rarity]||0;
-      return {id,score:c.hp*1.1+c.atk*0.9+match*8-c.cost*0.08+(c.trait?rare:0)+(match&&c.trait?12:0)+(stage.style==='fortress'?c.hp*0.5:0)+(stage.style==='aggressive'?c.atk*0.4:0)};
+      return {id,score:c.hp*1.1+(c.atk+attackMods(c,t).atk)*1.4+match*8-c.cost*0.08+(c.trait?rare:0)+(match&&c.trait?12:0)+(stage.style==='fortress'?c.hp*0.3:0)+(stage.style==='aggressive'?c.atk*0.4:0)};
     }).sort((a,b)=>b.score-a.score);
     // Stage 1 keeps cash back, so a first game still finds empty tiles.
     const reserve=(stage.id===1&&m.current===1)||(stage.gentle&&m.current!==0)?(stage.gentle||280):stage.style==='aggressive'?8:20;
@@ -367,7 +415,10 @@ export function autoTurn(s,holdStrike=false){
     const cost=45*t.level;
     // Level 1 stays crackable unless the owner is actually rich. Fortress still walls up later.
     const reserve=((stage.id===1&&m.current===1)||(stage.gentle&&m.current!==0)?(stage.gentle?stage.gentle+40:320):stage.style==='fortress'?(t.level===1?120:70):stage.style==='aggressive'?100:80)-(CARDS[t.cardId]?.trait?30:0);
-    if(t.level<3&&p.gold>=cost+reserve){upgrade(s);return;}
+    const health=territoryHealth(m,t),threat=m.players.some(x=>x.id!==m.current&&(t.index-x.pos+m.tiles.length)%m.tiles.length<=4);
+    const soonHeal=(m.tiles.length-p.pos)/2.5<=2;
+    const defensiveReserve=reserve-(threat&&health.damage?35:0)+(soonHeal&&health.damage&&!threat?25:0);
+    if(t.level<3&&p.gold>=cost+defensiveReserve){upgrade(s);return;}
   } else {
     const items=availableItem(s),units=p.hand.filter(id=>CARDS[id].kind==='unit');
     const foe=Math.max(...m.players.filter(x=>x.id!==m.current).map(x=>goldScore(m,x.id)));
@@ -377,10 +428,24 @@ export function autoTurn(s,holdStrike=false){
     for(const id of units){for(const itemId of [null,...items]){
       try{
         const v=combatPreview(s,id,itemId);
-        if(v.success&&v.cost<=p.gold){
+        if(v.cost<=p.gold){
           const keep=stage.style==='fortress'?40:18;
           if(!urgent && p.gold-v.cost<keep && t.level<2) continue;
-          fights.push({id,itemId,score:t.level*55+90-v.cost*0.25+(stage.style==='aggressive'?50:0)+(urgent?40:0)});
+          if(v.success){
+            fights.push({id,itemId,score:t.level*55+90-v.cost*.4+(stage.style==='aggressive'?35:0)+(urgent?60:0)+(t.damage?15:0)});
+          }else{
+            const remaining=stage.maxRounds-m.round,lapTurns=m.tiles.length/2.5;
+            // Failed attacks still pay toll. Compare incremental cost against
+            // persistent damage likely to remain for a later visit, not raw ATK.
+            const residual=Math.max(0,v.persistentDamage-Math.ceil(CARDS[t.cardId].hp*.2));
+            const landValue=70+CARDS[t.cardId].cost+t.level*85;
+            const followUp=p.hand.some(other=>other!==id&&CARDS[other].kind==='unit'&&CARDS[other].atk>=v.defenderRemaining);
+            const benefit=landValue*Math.min(1,residual/v.standingHP)*.65+(followUp?18:0);
+            const loss=v.cost+(v.attackerSurvives?0:35)+Math.max(0,v.toll-(p.gold-v.cost))*.2;
+            const score=benefit-loss;
+            if(remaining>=Math.ceil(lapTurns)&&v.attackerSurvives&&v.attack>=v.defenderRemaining+Math.ceil(CARDS[t.cardId].hp*.2)&&v.persistentDamage>=2&&p.gold>=v.cost+v.toll+keep&&score>12)
+              fights.push({id,itemId,score});
+          }
         }
       }catch{/* illegal combo */}
     }}

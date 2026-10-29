@@ -435,7 +435,7 @@ details.legend-box[open] .map-legend span{display:inline!important}
   body.ingame .hand{flex:0 0 auto;max-height:132px;overflow:hidden}
   body.ingame .battle-log{flex:0 0 auto;max-height:44px}
   body.ingame .battle-prompt{display:flex;flex-direction:column}
-  body.ingame .battle-prompt>.go{order:-1;position:sticky;top:-6px;z-index:2;background:#243b52;padding:3px 0}
+  body.ingame .battle-prompt>.go{order:-1;position:sticky;top:0;z-index:2;background:#243b52;padding:3px 0}
   body.ingame .dock .choices{flex-shrink:0}
 }
 

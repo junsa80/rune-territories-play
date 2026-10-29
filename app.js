@@ -1,5 +1,5 @@
-import {VERSION, UI_BUILD, HARD_HINTS, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, TRIO_STAGE, TRIALS, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES, trialReward} from './data.js?v=0.1.53';
-import {stageById, trioOpen, trialOpen, newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf, neighborBonus, tileBonus, storeDeck, restoreDeck} from './game.js?v=0.1.53';
+import {VERSION, UI_BUILD, HARD_HINTS, CARDS, CARD_LIST, STAGES, ELEMENTS, RARITY_NAMES, DUST_COST, DECK_SIZE, COPY_LIMIT, TRAITS, STORY, TRIO_STAGE, TRIALS, makeBoard, STAGE_PACKS, ACHIEVEMENTS, UPDATES, trialReward} from './data.js?v=0.2.0';
+import {stageById, trioOpen, trialOpen, newSave, loadSave, startMatch, roll, playSpell, legalSpell, placementOptions, place, upgrade, declareStrike, answerStrike, pass, aiTurn, goldScore, getLandedTile, validateDeck, editDeck, craft, selectTicket, endMatch, surrender, traitNumbers, claimAchievement, combatPreview, tollOf, neighborBonus, tileBonus, storeDeck, restoreDeck, territoryHealth, migrateCombat} from './game.js?v=0.2.0';
 import {unlockAudio, sfx, toggleMute, muted} from './audio.js?v=20261025-audio';
 const KEY='rune-territories.save.v1';
 const root=document.querySelector('#app');
@@ -27,7 +27,7 @@ function keepReward(r){
   const key=r.key&&CARDS[r.key.id]?r.key:null;
   return {...r,key,pulled,hotpack};
 }
-function loadForLocal(s){const m=s.match,reward=keepReward(s.lastReward);const v=loadSave(s);if(reward)v.lastReward=reward;if(matchLooksPlayable(m))v.match=m;else if(m)droppedMatch=true;return v;}
+function loadForLocal(s){const m=s.match,reward=keepReward(s.lastReward);const v=loadSave(s);if(reward)v.lastReward=reward;if(matchLooksPlayable(m))v.match=migrateCombat(m);else if(m)droppedMatch=true;return v;}
 try{save=initialRaw?loadForLocal(JSON.parse(initialRaw)):newSave();}catch(e){console.warn('Save read error, original retained:',e);recoveryRaw=initialRaw;save=newSave();}
 let page=save.match?'game':'home',difficulty='normal',stageSelected=1,previewStage=1,selectedUnit=null,selectedItem=null,sheet=null,story=null,status=!storageAvailable?'로컬 저장소를 사용할 수 없어 자동 저장이 비활성화되었습니다. JSON 백업을 이용하세요.':droppedMatch?'저장된 대전은 이어갈 수 없어 캠페인 기록만 복구했습니다.':'';
 if(!save.match&&save.story&&!save.story.prologue){story={id:'prologue',part:'prologue',page:0,then:null};page='title';}
@@ -93,13 +93,13 @@ function sideCard(id,who,support,hidden){const c=id&&CARDS[id];const sup=hidden?
 function battleSheet(m){const b=m.battleResult;if(!b)return '';
  const atkWho=sideName(m,b.attacker), defWho=sideName(m,b.defender);
  const d=verdict(b,b.defender===0);
- const flow=b.success?`<p class="gold-note">통행료 없음. 수비는 반격 전에 쓰러지고 공격 몬스터가 칸을 가져갑니다.</p>`:(b.paid?`<p class="gold-note">${atkWho} → ${defWho} <b>${b.paid}G</b> 통행료. 수비는 살아 있습니다.</p>`:`<p class="gold-note">낼 골드가 없어 통행료 0. 수비는 살아 있습니다.</p>`);
+ const flow=`<p class="gold-note">${b.success?'점령 · 통행료 없음':`${atkWho} → ${defWho} 통행료 ${b.paid}G`} · 비용 ${b.cost??(CARDS[b.unitId].cost+(b.atkSupport?CARDS[b.atkSupport].cost:0))}G${b.defSupport?` + 수비 지원 ${CARDS[b.defSupport].cost}G`:''}. 장비·주문은 사용 후 버림패.</p>`;
  const spells=(b.spells||[]).map(x=>`<p class="spell-line">${sideName(m,x.who)} ${esc(x.name)} · ${esc(x.line)}</p>`).join('');
- return `<div class="sheet-back"><article class="sheet battle-sheet ${d.tone==='win'?'win flash-win':'lose flash-lose'}" data-action="noop"><p class="kicker">전투 결과</p><h1>${d.title}</h1><div class="versus">${sideCard(b.unitId,atkWho,b.atkSupport,false)}${sideCard(b.defenderId,defWho,b.defSupport,false)}</div><p class="clash">${d.line}</p>${bonusBlock(b,b.defender===0)}<p class="small">카드 그림의 공격·생명은 기본값입니다.</p>${spells}${flow}<div class="go">${btn('확인','battle-clear','','primary')}</div></article></div>`;
+ return `<div class="sheet-back"><article class="sheet battle-sheet ${d.tone==='win'?'win flash-win':'lose flash-lose'}" data-action="noop"><p class="kicker">전투 결과</p><h1>${d.title}</h1><div class="versus">${sideCard(b.unitId,atkWho,b.atkSupport,false)}${sideCard(b.defenderId,defWho,b.defSupport,false)}</div><p class="clash">${d.line}</p><details class="battle-calculations"><summary>계산 자세히</summary>${bonusBlock(b,b.defender===0)}<p class="small">카드 그림의 공격·생명은 기본값입니다.</p></details>${spells}${flow}<div class="go">${btn('확인','battle-clear','','primary')}</div></article></div>`;
 }
 function nav(){return `<header class="topbar"><div><b>✦ 룬 영토</b><span class="sub"> Alpha ${VERSION} · UI ${UI_BUILD}</span> ${btn(muted()?'소리 끔':'소리 켬','mute','','quiet')}</div><div class="nav">${btn('캠페인','home','','navbtn')}${btn('덱·도감','collection','','navbtn')}${btn('로그','logs','','navbtn')}${btn('백업','backup','','navbtn')}</div></header>`;}
 function home(){const p=save.progress;return `<section class="intro home-hero"><img class="home-keyart" src="art/keyart.webp" alt="룬 영토 키아트" width="780" height="439" decoding="async"><div class="home-copy"><h1>영토와 카드의 전술</h1><p>룬 고리를 돌며 <b>영토 선점·자원 투자·침략</b>을 고르는 1:1 AI 캠페인입니다.</p><div class="pills"><span>🪙 재료 ${save.dust}</span><span>🎟️ 선택권 ${save.tickets}</span><span>🃏 덱 ${save.deck.length}/${DECK_SIZE}</span></div><div class="action-row">${btn('프롤로그','story-open','data-stage="0"','outline')}</div></div></section>${save.match?`<div class="notice">진행 중인 대전이 있습니다. ${btn('대전 계속','continue')}</div>`:''}
-${rewardHTML()}<section class="section"><h2>캠페인</h2><div class="stage-grid">${STAGES.map(st=>{const lock=st.id>p.highestUnlocked,won=p.wins[st.id]||0;const quote=lock?'':`<p class="story-quote">${esc(STORY.stages[st.id].intro.hook)}</p>`;const face=STAGE_FACE[st.id]||'leo';return `<article class="stage${lock?' lock':''}"><div class="stage-banner">${artTag(faceSrc(face),st.enemy,'stage-face')}<div class="stage-head"><b>${st.id}. ${esc(st.name)}</b><span>${lock?'🔒':p.cleared.includes(st.id)?'✓ 클리어':'도전 가능'}</span></div></div><p>${esc(st.focus)} · 상대: ${esc(st.enemy)}</p>${quote}<details class="stage-more"><summary class="small">보상·규칙</summary><p class="small">승리 ${won}회 · 목표 ${st.target}점 · 8턴부터 선도달 · ${st.maxRounds}턴 종료 · 일반 보상 팩 ${STAGE_PACKS[st.id]}장 · 선택권은 3승, 다음 5승, 다음 7승, 이후 10승마다 1장. 50승·100승은 2장 · 일일 첫 승리 보상 ×2</p></details><div class="stage-buttons">${btn('이야기','story-open',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('카드 확인','deckcheck',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('일반 대전','start',`data-stage="${st.id}" data-diff="normal" ${lock||!!save.match?'disabled':''}`)}${btn('어려움','start',`data-stage="${st.id}" data-diff="hard" ${lock||!p.cleared.includes(st.id)||!!save.match?'disabled':''}`,'outline')}</div></article>`;}).join('')}</div></section>${trioHTML()}${chapterHTML()}${updateHTML()}${achievementHTML()}<section class="section"><h2>알파 0.1 범위</h2><p class="small">현재는 <b>스테이지 ${STAGES.length}개 · 카드 ${CARD_LIST.length}종 · 덱 ${DECK_SIZE}장</b>입니다. 1장은 작은 사각형이고, 뒤 스테이지는 더 크며 가로·세로 모양이 달라집니다.</p></section>`;}
+${rewardHTML()}<section class="section"><h2>캠페인</h2><div class="stage-grid">${STAGES.map(st=>{const lock=st.id>p.highestUnlocked,won=p.wins[st.id]||0;const quote=lock?'':`<p class="story-quote">${esc(STORY.stages[st.id].intro.hook)}</p>`;const face=STAGE_FACE[st.id]||'leo';return `<article class="stage${lock?' lock':''}"><div class="stage-banner">${artTag(faceSrc(face),st.enemy,'stage-face')}<div class="stage-head"><b>${st.id}. ${esc(st.name)}</b><span>${lock?'🔒':p.cleared.includes(st.id)?'✓ 클리어':'도전 가능'}</span></div></div><p>${esc(st.focus)} · 상대: ${esc(st.enemy)}</p>${quote}${st.id===2&&!lock?'<p class="small">미라 대응: 방패로 반격을 버티며 피해를 남기고, 손상된 영토를 마무리하세요. 상대의 출발점 통과 회복에 주의.</p>':''}<details class="stage-more"><summary class="small">보상·규칙</summary><p class="small">승리 ${won}회 · 목표 ${st.target}점 · 8턴부터 선도달 · ${st.maxRounds}턴 종료 · 일반 보상 팩 ${STAGE_PACKS[st.id]}장 · 선택권은 3승, 다음 5승, 다음 7승, 이후 10승마다 1장. 50승·100승은 2장 · 일일 첫 승리 보상 ×2</p></details><div class="stage-buttons">${btn('이야기','story-open',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('카드 확인','deckcheck',`data-stage="${st.id}" ${lock?'disabled':''}`,'outline')}${btn('일반 대전','start',`data-stage="${st.id}" data-diff="normal" ${lock||!!save.match?'disabled':''}`)}${btn('어려움','start',`data-stage="${st.id}" data-diff="hard" ${lock||!p.cleared.includes(st.id)||!!save.match?'disabled':''}`,'outline')}</div></article>`;}).join('')}</div></section>${trioHTML()}${chapterHTML()}${updateHTML()}${achievementHTML()}<section class="section"><h2>알파 0.1 범위</h2><p class="small">현재는 <b>스테이지 ${STAGES.length}개 · 카드 ${CARD_LIST.length}종 · 덱 ${DECK_SIZE}장</b>입니다. 1장은 작은 사각형이고, 뒤 스테이지는 더 크며 가로·세로 모양이 달라집니다.</p></section>`;}
 function updateHTML(){return `<section class="section"><h2>업데이트</h2><div class="stage-grid">${UPDATES.map(u=>`<article class="stage"><div class="stage-head"><b>${esc(u.title)}</b><span>${esc(u.date)}</span></div><p class="small">${esc(u.text)}</p></article>`).join('')}</div></section>`;}
 function achievementHTML(){const book=save.achievements||{};const losses=save.losses||0;return `<section class="section"><h2>업적</h2><p class="small">누적 패배 ${losses}회. 항복은 세지 않습니다.</p><div class="stage-grid">${ACHIEVEMENTS.map(a=>{const v=book[a.id];const claimed=v==='claimed'||v===true;const ready=v==='ready';return `<article class="stage"><div class="stage-head"><b>${esc(a.name)}</b><span>${claimed?'받음':ready?'보상 대기':'미달성'}</span></div><p class="small">${esc(a.text)}</p>${ready?`<div class="stage-buttons">${btn('보상 받기','claim',`data-id="${a.id}"`,'primary')}</div>`:''}</article>`;}).join('')}</div></section>`;}
 function rewardCards(){const r=save.lastReward;return r?[(r.key||null),...(r.hotpack?.length?r.hotpack:r.pulled||[])].filter(v=>v&&CARDS[v.id]):[];}
@@ -130,13 +130,13 @@ function ensureSelected(pool){if(!pool.length){selectedUnit=null;return;}if(!poo
 function handAttrs(id){
   const m=save.match,c=CARDS[id];
   if(m&&!m.ended&&!fx){
-    if(m.phase==='strike'&&((c.kind==='item'&&c.bonus==='def')||(c.kind==='spell'&&!m.players[0].spellUsed))) return ['select-item','support',id===selectedItem];
+    if(m.phase==='strike'&&(c.kind==='item'||(c.kind==='spell'&&!m.players[0].spellUsed))) return ['select-item','support',id===selectedItem];
     if(m.current===0&&m.phase==='prep'&&c.kind==='spell'&&legalSpell(save,id)) return ['inspect','spell',false];
     if(m.current===0&&m.phase==='land'){
       const t=getLandedTile(save);
       if(t.owner===null&&c.kind==='unit'&&placementOptions(save).includes(id)) return ['select-unit','place',id===selectedUnit];
       if(t.owner!==null&&t.owner!==0&&c.kind==='unit') return ['select-unit','invade',id===selectedUnit];
-      if(t.owner!==null&&t.owner!==0&&((c.kind==='item'&&c.bonus!=='def')||c.kind==='spell')) return ['select-item','support',id===selectedItem];
+      if(t.owner!==null&&t.owner!==0&&(c.kind==='item'||c.kind==='spell')) return ['select-item','support',id===selectedItem];
     }
   }
   return ['inspect','view',false];
@@ -158,9 +158,10 @@ function board(m){trackTiles(m);let cells=[];const n=m.tiles.length,acting=fx?.w
   const struck=m.battleResult&&m.battleResult.tile===i?' struck':'';
   const who=t.owner===null?'':isTrio(m)?sideName(m,t.owner).slice(0,1):t.owner===0?'나':'적';
   const label=ev?ev.name:(unit?unit.name:ELEMENTS[t.element]);
+  const health=unit?territoryHealth(m,t):null;
   const next=m.tiles[(i+1)%n],arrow=next.c>c?'→':next.r>r?'↓':next.c<c?'←':'↑';
   const distance=(i-focus+n)%n;const upcoming=!fx&&m.phase==='prep'&&distance>=1&&distance<=4;
-  cells.push(`<div data-action="map-tile" data-id="${i}" role="button" tabindex="0" aria-label="${i}번 ${esc(label)} ${who?who+' 영토':'빈 땅'}" class="tile el-${t.element}${upcoming?' upcoming':''}${ev?' event':''}${matched?' matched':''} owner-${t.owner===null?'none':t.owner}${here}${struck}${freshClass(i)}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(label)}"><span class="tile-number">${i}</span><span class="tile-direction" aria-hidden="true">${arrow}</span><div class="tile-top"><span class="el-chip ${ev?'event':t.element}">${elementIcon(ev?'event':t.element)}${ev?'이벤트':ELEMENTS[t.element]}</span>${matched?`<span class="match-flag">생명 +${Math.max(1,t.level||1)}</span>`:''}${unit&&!matched&&unit.element!=='neutral'?`<span class="miss-flag">불일치</span>`:''}${who?`<span class="who">${who}</span>`:`<b>${t.level?'★'.repeat(t.level):''}</b>`}</div><div class="tile-unit">${unit&&unit.token?`<img class="unit-token" src="./art/tokens/${unit.id}.png" alt="" draggable="false">`:''}${esc(label)}${who&&t.level?` <i>Lv${t.level}</i>`:''}</div>${here?`<span class="here-flag">${acting?(isTrio(m)?sideName(m,acting)+' 위치':'적 위치'):'내 위치'}</span>`:''}<div class="tile-pawns">${markers}</div></div>`);}
+  cells.push(`<div data-action="map-tile" data-id="${i}" role="button" tabindex="0" aria-label="${i}번 ${esc(label)} ${who?who+' 영토':'빈 땅'}" class="tile el-${t.element}${upcoming?' upcoming':''}${ev?' event':''}${matched?' matched':''} owner-${t.owner===null?'none':t.owner}${here}${struck}${freshClass(i)}" style="grid-row:${r+1};grid-column:${c+1}" title="${esc(label)}"><span class="tile-number">${i}</span><span class="tile-direction" aria-hidden="true">${arrow}</span><div class="tile-top"><span class="el-chip ${ev?'event':t.element}">${elementIcon(ev?'event':t.element)}${ev?'이벤트':ELEMENTS[t.element]}</span>${matched?`<span class="match-flag">생명 +${Math.max(1,t.level||1)}</span>`:''}${unit&&!matched&&unit.element!=='neutral'?`<span class="miss-flag">불일치</span>`:''}${who?`<span class="who">${who}</span>`:`<b>${t.level?'★'.repeat(t.level):''}</b>`}</div><div class="tile-unit">${unit&&unit.token?`<img class="unit-token" src="./art/tokens/${unit.id}.png" alt="" draggable="false">`:''}${esc(label)}${who&&t.level?` <i>Lv${t.level}${t.damage?` · HP${health.current}`:``}</i>`:''}</div>${here?`<span class="here-flag">${acting?(isTrio(m)?sideName(m,acting)+' 위치':'적 위치'):'내 위치'}</span>`:''}<div class="tile-pawns">${markers}</div></div>`);}
  return `<div class="board${isTrio(m)?' trio-board p'+m.players.length:''}" style="grid-template-columns:repeat(${m.w},minmax(0,1fr));grid-template-rows:repeat(${m.h},minmax(0,1fr))" role="group" aria-label="${n}칸 시계 방향 영토 보드">${cells.join('')}<div class="board-center" style="grid-column:2/${m.w};grid-row:2/${m.h};--bc:url(art/board-center.webp)">${artTag(faceSrc(sideFace(m,acting)), acting?sideName(m,acting):'나','center-face')}<div class="route-hint">↻ 시계 방향으로 이동</div><div>라운드 <b>${m.round}/${stageById(m.stageId).maxRounds}</b></div>${isTrio(m)?m.players.map(pl=>`<div class="score-${pl.id===0?'me':pl.id===1?'ai':'ai'+pl.id} trio-score">${sideName(m,pl.id)} ${goldScore(m,pl.id)}점</div>`).join(''):`<div class="score-me">나 ${goldScore(m,0)}점</div><div class="score-ai">AI ${goldScore(m,1)}점</div>`}<div class="small">목표 ${stageById(m.stageId).target+(m.difficulty==='hard'?180:0)}점</div></div>${dieHTML()}</div><details class="legend-box" data-k="legend"${openK('legend')}><summary>범례·도움말</summary><div class="map-legend${isTrio(m)&&m.players.length>3?' legend-p4':''}">${isTrio(m)?m.players.map(pl=>`<span class="legend-${pl.id===0?'me':pl.id===1?'foe':'ai'+pl.id}">■ ${sideName(m,pl.id)}</span>`).join(''):'<span class="legend-me">■ 내 땅</span><span class="legend-foe">■ 적 땅</span>'}<span>↻ 시계 방향</span><span>점선: 다음 1~4칸</span><span>칸을 눌러 상세</span></div></details>`;
 }
 function supportChoices(extra=0){
@@ -168,7 +169,6 @@ function supportChoices(extra=0){
   for(const id of p.hand){
     const c=CARDS[id];
     if(c.kind!=='item'&&c.kind!=='spell') continue;
-    if(c.kind==='item'&&(save.match.phase==='strike'?c.bonus!=='def':c.bonus==='def')) continue;
     if(c.kind==='spell'&&p.spellUsed) continue;
     if(p.gold<c.cost+extra) continue;
     if(!ids.includes(id)) ids.push(id);
@@ -179,19 +179,11 @@ function supportButtons(ids){
   return [btn('지원 없음','select-item','data-id=""',!selectedItem?'chosen':'') , ...ids.map(id=>btn(CARDS[id].name,'select-item',`data-id="${id}"`,selectedItem===id?'chosen':''))].join('');
 }
 function verdict(v,defending){
-  const atk=defending?'적 공격':'내 공격', land=defending?'내 땅 생명':'적 땅 생명', ret=defending?'내 반격':'적 반격', body=defending?'적 생명':'내 생명';
-  const killed=v.attack>=v.defenderHP;
-  const countered=v.defense!=null&&v.retaliation>=v.defense;
-  if(killed){
-    const title=defending?'수비 실패':'침략 성공';
-    return {title,line:`${atk} ${v.attack} ≥ ${land} ${v.defenderHP}. 반격 전에 쓰러짐. 땅 점령. 통행료 없음.`,tone:defending?'lose':'win'};
-  }
-  if(countered){
-    const title=defending?'수비 성공':'침략 실패';
-    return {title,line:`${atk} ${v.attack} < ${land} ${v.defenderHP}. ${ret} ${v.retaliation} ≥ ${body} ${v.defense}. 공격만 쓰러짐. 통행료.`,tone:defending?'win':'lose'};
-  }
-  const title=defending?'수비 성공':'무승부';
-  return {title,line:`${atk} ${v.attack} < ${land} ${v.defenderHP}. 둘 다 살아 있음. 통행료.`,tone:defending?'win':'lose'};
+ const outcome=v.outcome||(v.success?'capture':'legacy');
+ if(outcome==='legacy')return {title:'이전 버전 전투 기록',line:'이 전투는 개편 전 규칙으로 처리되었습니다.',tone:'lose'};
+ const title=outcome==='capture'?'영토 점령 성공':outcome==='attacker-dead'?'공격자 사망 · 수비 유지':'수비 유지 · 손패 복귀';
+ const destination=outcome==='capture'?'공격 카드 → 영토':outcome==='attacker-dead'?'공격 카드 → 버림패':'공격 카드 → 손패 (생명 회복)';
+ return {title,line:`공격 피해 ${v.attackDamage} · 수비 잔여 ${v.defenderRemaining}HP · 반격 피해 ${v.counterDamage} · 공격자 ${v.attackerRemaining}HP. ${destination}.`,tone:(defending?!v.success:v.success)?'win':'lose'};
 }
 function bonusLine(label,total,rows){
   if(!rows) return '';
@@ -206,7 +198,7 @@ function bonusBlock(v,defending){
 function forecastHTML(v,m){
   if(!v) return '<p class="small">유닛을 고르면 상대 장비를 빼고 계산한 예측이 나옵니다.</p>';
   const d=verdict(v,m.phase==='strike');
-  return `<p class="forecast ${d.tone}"><b>${d.title}</b> ${d.line}</p><details class="why" data-k="why"${openK('why')}><summary>계산 자세히</summary>${bonusBlock(v,m.phase==='strike')}<p class="small">공격이 먼저입니다. 수비 생명이 0이면 반격은 없습니다. 지형 일치는 생명 +레벨. 상대 장비는 가려져 있습니다.</p></details>`;
+  return `<p class="forecast ${d.tone}"><b>상대 지원 제외 예상: ${d.title}</b> ${d.line} 통행료 ${v.success?0:v.toll}G (현재 조건). 상대의 숨긴 지원으로 달라질 수 있습니다.</p><details class="why" data-k="why"${openK('why')}><summary>계산 자세히</summary>${bonusBlock(v,m.phase==='strike')}<p class="small">공격이 먼저입니다. 수비 생명이 0이면 반격은 없습니다. 장비 생명은 임시 보호, 남은 피해는 영토에 유지됩니다. 소유자가 출발점을 통과하면 인쇄 생명의 20%(올림) 회복합니다. 상대 지원은 가려져 있습니다.</p></details>`;
 }
 function openForecast(m){
   try{
@@ -232,7 +224,7 @@ function fightControls(m){const p=m.players[0],t=getLandedTile(save);
  const leaveBtn=btn(`통행료 ${toll}G 내고 지나감`,'pass','',selectedOk?'outline':'primary');
  const go=`${selectedOk?invadeBtn:leaveBtn}${selectedOk?leaveBtn:invadeBtn}${units.length>1?btn('다음 유닛','next-unit','data-pool="invade"','outline'):''}`;
  const hold=!selectedUnit?'':CARDS[selectedUnit].element===t.element&&CARDS[selectedUnit].element!=='neutral'?`성공하면 이 칸에 남고 이후 생명 +${Math.max(1,t.level||1)}.`:'성공해도 속성이 달라 이후 생명 보너스는 없습니다.';
- const coach=(selectedOk?'공격이 생명을 넘습니다. 상대 장비로 바뀔 수 있습니다.':winning.length?'이 카드는 못 넘습니다. 점 있는 카드로 바꾸세요.':'지금 손패로는 못 넘습니다. 지나가면 통행료만 냅니다.')+` ${hold} 실패하면 카드는 사라지고 통행료를 냅니다.`;
+ const coach=`${hold} 공격·지원 비용은 결과와 무관하게 지불합니다. 수비가 남으면 통행료를 내며, 공격자가 생존하면 카드가 손패로 돌아옵니다. 누적 피해로 다음 침략을 준비할 수 있습니다.`;
  const me=selectedUnit?selectedUnit:null;
  return `<div class="prompt battle-prompt"><div class="versus">${sideCard(t.cardId,'적',null,true)}${sideCard(me,'나',selectedItem,false)}</div>${forecastHTML(openForecast(m),m)}<p class="small">${coach}</p><div class="go">${go}</div><div class="choices unit-choices">${options||'손패에 침략용 유닛이 없습니다.'}</div><div class="choices">${supportButtons(supports)}</div></div>`;
 }
@@ -321,8 +313,8 @@ function storyHTML(){
   const nextLabel=last?(story.then&&story.then.act==='start'?'이 이야기로 대전':'캠페인으로'):'다음';
   return `<section class="story-screen"><p class="kicker">${esc(pack.kicker||'이야기')}</p><h1>${esc(pack.title)}</h1><article class="story-card">${artTag(faceSrc(face), beat.speaker||'이야기', 'story-face')}<div><b>${esc(beat.speaker||'')}</b><p class="story-line">${esc(beat.text)}</p></div></article><p class="small story-step">${story.page+1} / ${pack.pages.length}</p><div class="go">${btn(nextLabel,'story-next','','primary')}${last?'':btn('건너뛰기','story-skip','','outline')}</div></section>`;
 }
-function mapSheetHTML(){const m=save.match,t=m?.tiles[mapTile];if(mapTile===null||!t)return '';const c=t.cardId&&CARDS[t.cardId],ev=cornerAt(m,t.index);const owner=t.owner===0?'내 영토':t.owner===1?'상대 영토':'빈 땅';const hp=c?c.hp+tileBonus(t,c)+neighborBonus(m,t,t.owner)+traitNumbers(m,t).hp:0;
- return `<div class="sheet-back" data-action="map-close"><article class="sheet tile-sheet" data-action="noop"><p class="kicker">${t.index}번 칸 · ${ev?'이벤트':ELEMENTS[t.element]} · ${owner}</p><h1>${esc(ev?.name||c?.name||ELEMENTS[t.element]+' 땅')}</h1>${ev?`<p>${esc(ev.text)}</p>`:c?`${artTag(cardSrc(c.id),c.name,'sheet-art')}<p>Lv.${t.level} · 수비 생명 <b>${hp}</b> · 통행료 <b>${tollOf(m,t)}G</b></p><p class="small">인쇄 생명 ${c.hp} + 지형 ${tileBonus(t,c)} + 연속 ${neighborBonus(m,t,t.owner)} + 특성·이웃 ${traitNumbers(m,t).hp}</p><p>${esc(withTrait(c))}</p>`:'<p>이 칸에 도착하면 손패 유닛을 배치할 수 있습니다. 같은 속성 유닛은 수비 생명 +레벨.</p>'}<p class="small">다음 칸 ${(t.index+1)%m.tiles.length}번 · 시계 방향</p>${btn('보드로 돌아가기','map-close','','primary')}</article></div>`;
+function mapSheetHTML(){const m=save.match,t=m?.tiles[mapTile];if(mapTile===null||!t)return '';const c=t.cardId&&CARDS[t.cardId],ev=cornerAt(m,t.index);const owner=t.owner===0?'내 영토':t.owner===1?'상대 영토':'빈 땅';const hp=c?territoryHealth(m,t).current:0;
+ return `<div class="sheet-back" data-action="map-close"><article class="sheet tile-sheet" data-action="noop"><p class="kicker">${t.index}번 칸 · ${ev?'이벤트':ELEMENTS[t.element]} · ${owner}</p><h1>${esc(ev?.name||c?.name||ELEMENTS[t.element]+' 땅')}</h1>${ev?`<p>${esc(ev.text)}</p>`:c?`${artTag(cardSrc(c.id),c.name,'sheet-art')}<p>Lv.${t.level} · 수비 생명 <b>${hp}/${territoryHealth(m,t).max}</b> · 통행료 <b>${tollOf(m,t)}G</b></p><p class="small">누적 피해 ${territoryHealth(m,t).damage} · 출발점 통과 시 최대 ${Math.ceil(c.hp*.2)}HP 회복. 인쇄 생명 ${c.hp} + 지형 ${tileBonus(t,c)} + 연속 ${neighborBonus(m,t,t.owner)} + 특성·이웃 ${traitNumbers(m,t).hp}</p><p>${esc(withTrait(c))}</p>`:'<p>이 칸에 도착하면 손패 유닛을 배치할 수 있습니다. 같은 속성 유닛은 수비 생명 +레벨.</p>'}<p class="small">다음 칸 ${(t.index+1)%m.tiles.length}번 · 시계 방향</p>${btn('보드로 돌아가기','map-close','','primary')}</article></div>`;
 }
 function sheetHTML(){if(!sheet||!CARDS[sheet.id])return '';const c=CARDS[sheet.id];let play='';
  if(sheet.intent==='place') play=btn('확인하고 배치','place',`data-id="${c.id}"`,'primary');
@@ -488,6 +480,9 @@ function queueAi(){
   },trio()&&trioFF?40:90);
   function trio(){return isTrio(save.match);}
 }
+// Touch focus must not scroll the dock before render captures its position.
+// Keyboard activation keeps its ordinary focus/navigation behavior.
+root.addEventListener('pointerdown',e=>{const el=e.target.closest('[data-action]');if(el&&['next-unit','select-unit','select-item'].includes(el.dataset.action))e.preventDefault();});
 root.addEventListener('click',e=>{const first=!audioReady;unlockAudio();audioReady=true;if(first){heardSalary=-1;cueSalary();}const el=e.target.closest('[data-action]');if(!el||el.disabled)return;const act=el.dataset.action;if(fx&&fx.until&&Date.now()>fx.until){clearFxTimer();fx=null;}if(fx&&act!=='mute'&&act!=='trio-ff')return;if(MUTATING.has(act)&&Date.now()<actLock)return;if(MUTATING.has(act))actLock=Date.now()+320;try{status='';doAction(act,el.dataset.id,el);}catch(err){status=err.message;render();}});
 root.addEventListener('change',async e=>{if(e.target.id==='collection-sort'){collectionSort=e.target.value;preserveScroll=true;render();return;}if(e.target.id!=='import-file')return;const file=e.target.files?.[0];if(!file)return;
  try{const next=loadSave(await file.text());save=next;sheet=null;story=null;selectedUnit=null;selectedItem=null;page='home';status='백업에서 진행 기록을 복구했습니다.';}catch(err){status=`복원 취소: ${err.message}`;}render();});
